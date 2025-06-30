@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Math Test App{% endblock %}</title>
+    <style>
+        /* Basic styling for a clean, floating navbar */
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            margin: 0;
+            padding-top: 60px; /* Provide space for the fixed navbar */
+            background-color: #f4f4f9;
+        }
+        .navbar {
+            background-color: #2c3e50; /* Deep blue for a modern, professional look */
+            overflow: hidden;
+            position: fixed; /* Fix it to the top */
+            top: 0;
+            width: 100%;
+            z-index: 1000;
+            border-bottom: 1px solid #1a252f; /* Darker border for depth */
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            height: 60px;
+        }
+        .navbar a {
+            color: #ecf0f1; /* Light text for contrast on dark background */
+            text-align: center;
+            padding: 14px 16px;
+            text-decoration: none;
+            font-size: 17px;
+            transition: background-color 0.3s ease, color 0.3s ease; /* Smooth hover effect */
+        }
+        .navbar a:hover {
+            background-color: #34495e; /* Corrected hover color to better match the navbar */
+            color: #ffffff;
+            border-radius: 5px;
+        }
+        .nav-left, .nav-right { display: flex; align-items: center; gap: 10px; }
+        .nav-right span {
+            /* Style the "Hello, User" text to match nav links */
+            color: #ecf0f1; /* Match the link color */
+            font-size: 17px;
+        }
+        .content { padding: 20px; }
+        .alert {
+            padding: 15px;
+            margin-bottom: 20px;
+            border: 1px solid transparent;
+            border-radius: 4px;
+        }
+        .alert-success {
+            color: #155724;
+            background-color: #d4edda;
+            border-color: #c3e6cb;
+        }
+        .alert-danger {
+            color: #721c24;
+            background-color: #f8d7da;
+            border-color: #f5c6cb;
+        }
+        .alert-warning {
+            color: #856404;
+            background-color: #fff3cd;
+            border-color: #ffeeba;
+        }
+        .alert-info {
+            color: #0c5460;
+            background-color: #d1ecf1;
+            border-color: #bee5eb;
+        }
+        /* Professional Form Styling */
+        .form-container {
+            background-color: #ffffff;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            max-width: 500px;
+            margin: 20px auto;
+        }
+        .form-container h2 {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #333;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #555;
+        }
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box; /* Ensures padding doesn't affect width */
+        }
+        button[type="submit"] {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 4px;
+            background-color: #007bff;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        button[type="submit"]:hover {
+            background-color: #0056b3;
+        }
+        /* General styles for non-submit buttons */
+        button[type="button"] {
+            padding: 8px 12px;
+            border: none;
+            border-radius: 4px;
+            color: white;
+            font-size: 14px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        .btn-add-question {
+            background-color: #28a745;
+            margin-bottom: 20px;
+        }
+        .btn-add-question:hover { background-color: #218838; }
+        .btn-add-option {
+            background-color: #6c757d;
+            margin-top: 10px;
+        }
+        .btn-add-option:hover { background-color: #5a6268; }
+        .form-footer-text {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 14px;
+            color: #6c757d;
+        }
+        .form-footer-text a {
+            color: #007bff;
+            text-decoration: none;
+            font-weight: bold;
+        }
+        /* Styles for Dynamic Assignment Form */
+        .question-block {
+            background-color: #f9f9f9;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .question-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .question-header h4 {
+            margin: 0;
+            color: #333;
+        }
+        .remove-btn {
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.2s ease;
+        }
+        .remove-btn:hover { background-color: #c82333; }
+        .btn-link {
+            display: inline-block;
+            padding: 5px 10px;
+            font-size: 14px;
+            text-align: center;
+            text-decoration: none;
+            vertical-align: middle;
+            cursor: pointer;
+            border: 1px solid transparent;
+            border-radius: .25rem;
+        }
+        .btn-assign {
+            color: #fff;
+            background-color: #17a2b8;
+            border-color: #17a2b8;
+        }
+        .btn-primary {
+            color: #fff;
+            background-color: #007bff;
+        }
+        .btn-results {
+            color: #fff;
+            background-color: #28a745;
+        }
+        .math-preview {
+            padding: 10px;
+            border: 1px solid #ddd;
+            margin-top: 5px;
+            border-radius: 4px;
+            min-height: 2em; /* Give it some height even when empty */
+        }
+        .mc-option {
+            display: flex;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+        .mc-option input[type="radio"] {
+            width: auto;
+            margin-right: 10px;
+        }
+        .mc-option-wrapper .math-preview {
+            /* Indent the preview to align with the text input */
+            margin-left: 28px; 
+            margin-top: 0;
+            margin-bottom: 10px;
+            border-top: none;
+        }
+        .status-completed {
+            background-color: #28a745;
+            color: white;
+            padding: 3px 8px;
+            font-size: 12px;
+            border-radius: 12px;
+        }
+        /* Styles for checkbox lists */
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        .checkbox-group input[type="checkbox"] {
+            width: auto;
+        }
+        .checkbox-group label {
+            font-weight: normal;
+            margin-bottom: 0;
+        }
+        /* --- Utility and Component Styles --- */
+        .list-unstyled {
+            list-style: none;
+            padding: 0;
+        }
+        .list-item {
+            background: #f9f9f9;
+            border: 1px solid #eee;
+            padding: 10px 15px;
+            border-radius: 4px;
+            margin-bottom: 10px;
+        }
+        .list-item-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .status-badge {
+            color: white;
+            padding: 3px 8px;
+            font-size: 12px;
+            border-radius: 12px;
+        }
+        .status-active { background-color: #28a745; }
+        .status-inactive { background-color: #6c757d; }
+        .text-correct { color: #28a745; }
+        .text-incorrect { color: #dc3545; }
+        .results-summary-score {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .btn-full-width {
+            display: block;
+            text-align: center;
+            padding: 12px;
+            text-decoration: none;
+        }
+        .btn-secondary {
+            background-color: #6c757d;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-left">
+            <a href="{{ url_for('index') }}">Home</a>
+            {% if current_user.is_authenticated %}
+                <a href="{{ url_for('dashboard') }}">Dashboard</a>
+                {% if current_user.role == 'teacher' %}
+                    <a href="{{ url_for('create_assignment') }}">Create Assignment</a>
+                    <a href="{{ url_for('create_class') }}">Create Class</a>
+                    <a href="{{ url_for('assignment_tracking') }}">Track Assignments</a>
+                {% endif %}
+                {% if current_user.role == 'student' %}
+                    <a href="{{ url_for('register_class') }}">Register for Class</a>
+                {% endif %}
+            {% endif %}
+        </div>
+        <div class="nav-right">
+            {% if current_user.is_authenticated %}
+                <span>Hello, {{ current_user.name }}</span>
+                <a href="{{ url_for('logout') }}">Logout</a>
+            {% else %}
+                <a href="{{ url_for('login') }}">Login</a>
+                <a href="{{ url_for('register') }}">Register</a>
+            {% endif %}
+        </div>
+    </nav>
+
+    <main class="content">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Add MathJax for rendering mathematical formulas -->
+    <script>
+        MathJax = {
+          tex: {inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$', '$$'], ['\\[', '\\]']]}
+        };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+</body>
+</html>

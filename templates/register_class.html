@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+
+{% block title %}Class Registration{% endblock %}
+
+{% block content %}
+<div class="form-container">
+    <h2>Class Registration</h2>
+    <p>Fill out the form below to register for a new class.</p>
+    <hr style="margin: 20px 0;">
+    <form method="POST" novalidate>
+        <div class="form-group">
+            <label for="student_name">Full Name</label>
+            <input type="text" id="student_name" name="student_name" value="{{ current_user.name }}" required>
+        </div>
+        <div class="form-group">
+            <label for="contact_email">Contact Email</label>
+            <input type="email" id="contact_email" name="contact_email" value="{{ current_user.email }}" required>
+        </div>
+        <div class="form-group">
+            <label for="contact_phone">Contact Phone (Optional)</label>
+            <input type="tel" id="contact_phone" name="contact_phone" placeholder="e.g., 123-456-7890">
+        </div>
+        <div class="form-group">
+            <label for="class_id">Select a Class</label>
+            <select id="class_id" name="class_id" required>
+                <option value="" disabled selected>-- Please choose a class --</option>
+                {% for class in active_classes %}
+                    <option value="{{ class._id }}">{{ class.name }} (Fee: ${{ class.fee }})</option>
+                {% endfor %}
+            </select>
+            {% if not active_classes %}
+                <p style="color: #6c757d; font-size: 14px; margin-top: 5px;">There are currently no active classes available for registration.</p>
+            {% endif %}
+        </div>
+        <button type="submit">Register for Class</button>
+    </form>
+</div>
+{% endblock %}

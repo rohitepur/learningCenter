@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="form-container" style="max-width: 800px;">
+    <h2>Dashboard</h2>
+    <p>Welcome, <strong>{{ current_user.name }}</strong>! Your role is: <strong>{{ current_user.role }}</strong>.</p>
+
+    {% if current_user.role == 'teacher' %}
+        <hr style="margin: 20px 0;">
+        <h3>Your Created Assignments</h3>
+        {% if assignments %}
+            <ul class="list-unstyled">
+                {% for assignment in assignments %}
+                    <li class="list-item">
+                        <div class="list-item-container">
+                            <span>{{ assignment.title }}</span>
+                            <a href="{{ url_for('assign_assignment', assignment_id=assignment._id) }}" class="btn-link btn-assign">
+                                Assign
+                            </a>
+                        </div>
+                    </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p>You haven't created any assignments yet.</p>
+            <a href="{{ url_for('create_assignment') }}" style="text-decoration: none;"><button type="button">Create Your First Assignment</button></a>
+        {% endif %}
+
+        <hr style="margin: 20px 0;">
+        <h3>Your Created Classes</h3>
+        {% if classes %}
+            <ul class="list-unstyled">
+                {% for class in classes %}
+                    <li class="list-item">
+                        <div class="list-item-container">
+                            <span>{{ class.name }} ({{ class.start_date }} to {{ class.end_date }})</span>
+                            {% if class.is_active %}
+                                <span class="status-badge status-active">Active</span>
+                            {% else %}
+                                <span class="status-badge status-inactive">Inactive</span>
+                            {% endif %}
+                        </div>
+                    </li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+    {% elif current_user.role == 'student' %}
+        {# Student view of registered classes #}
+        <hr style="margin: 20px 0;">
+        <h3>Your Registered Classes</h3>
+        {% if registrations %}
+            <ul class="list-unstyled">
+                {% for reg in registrations %}
+                    <li class="list-item">
+                        <strong>{{ reg.class_name }}</strong> - Registered on {{ reg.registration_date.strftime('%b %d, %Y') }}
+                    </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p>You haven't registered for any classes yet.</p>
+        {% endif %}
+
+        <hr style="margin: 20px 0;">
+        <h3>Available Assignments</h3>
+        {% if student_assignments %}
+            <ul class="list-unstyled">
+                {% for assignment in student_assignments %}
+                    <li class="list-item">
+                        <div class="list-item-container">
+                            <span>{{ assignment.title }}</span>
+                            {% if assignment._id|string in submissions_map %}
+                                <a href="{{ url_for('submission_summary', submission_id=submissions_map[assignment._id|string]) }}" class="btn-link btn-results">View Results</a>
+                            {% else %}
+                                <a href="{{ url_for('take_assignment', assignment_id=assignment._id) }}" class="btn-link btn-primary">
+                                    Take Assignment
+                                </a>
+                            {% endif %}
+                        </div>
+                    </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p>There are no assignments available for your classes right now.</p>
+        {% endif %}
+    {% endif %}
+</div>
+{% endblock %}

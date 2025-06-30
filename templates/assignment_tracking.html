@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block title %}Assignment Tracking{% endblock %}
+
+{% block content %}
+<div class="form-container" style="max-width: 95%; margin: 20px auto;">
+    <h2>Assignment Tracking</h2>
+    <p>View student submission status for all your classes.</p>
+
+    {% if not tracking_data %}
+        <p>You have not created any classes or assigned any assignments yet.</p>
+    {% endif %}
+
+    {% for data in tracking_data %}
+    <div class="question-block" style="background-color: #fff;">
+        <h3>Class: {{ data.class.name }}</h3>
+        {% if not data.students or not data.assignments %}
+            <p>This class has no students or no assignments assigned to it.</p>
+        {% else %}
+        <table class="tracking-table">
+            <thead>
+                <tr>
+                    <th>Student Name</th>
+                    {% for assignment in data.assignments %}
+                        <th>{{ assignment.title }}</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for student_id, student_name in data.students.items() %}
+                <tr>
+                    <td>{{ student_name }}</td>
+                    {% for assignment in data.assignments %}
+                        {% set submission = data.submissions.get((student_id, assignment._id|string)) %}
+                        <td>
+                            {% if submission %}
+                                <a href="{{ url_for('submission_summary', submission_id=submission._id) }}" class="text-correct">{{ submission.score }} / {{ submission.total_questions }}</a>
+                            {% else %}
+                                <span class="status-not-taken">Not Taken</span>
+                            {% endif %}
+                        </td>
+                    {% endfor %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% endif %}
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

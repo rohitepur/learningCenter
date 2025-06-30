@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+
+{% block title %}Create Assignment{% endblock %}
+
+{% block content %}
+<div class="form-container" style="max-width: 800px;">
+  <h2>Create a New Assignment</h2>
+  <form method="POST" id="assignment-form" novalidate>
+    <div class="form-group">
+      <label for="title">Assignment Title</label>
+      <input type="text" id="title" name="title" required>
+    </div>
+    <hr style="margin: 20px 0;">
+
+    <div id="questions-container">
+      <!-- Dynamic questions will be injected here by JavaScript -->
+    </div>
+
+    <button type="button" class="btn-add-question" onclick="addQuestion()">Add Question</button>
+    <button type="submit">Create Assignment</button>
+  </form>
+</div>
+
+<script>
+let questionCounter = 0;
+
+function addQuestion() {
+    const container = document.getElementById('questions-container');
+    const questionIndex = questionCounter;
+
+    const questionBlock = document.createElement('div');
+    questionBlock.className = 'question-block';
+    questionBlock.id = `question-block-${questionIndex}`;
+    questionBlock.innerHTML = `
+        <div class="question-header">
+            <h4>Question ${questionIndex + 1}</h4>
+            <button type="button" class="remove-btn" onclick="removeQuestion(${questionIndex})">Remove</button>
+        </div>
+        <div class="form-group">
+            <label for="question_text_${questionIndex}">Question Text (use $...$ for inline math and $$...$$ for display math)</label>
+            <textarea id="question_text_${questionIndex}" name="question_text" class="form-control" rows="3" onkeyup="updateMathPreview(${questionIndex})"></textarea>
+            <div class="math-preview" id="math-preview-${questionIndex}"></div>
+        </div>
+        <div class="form-group">
+            <label for="question_type_${questionIndex}">Question Type</label>
+            <select id="question_type_${questionIndex}" name="question_type" class="form-control" onchange="updateAnswerType(${questionIndex})">
+                <option value="single_response">Single Response</option>
+                <option value="multiple_choice">Multiple Choice</option>
+            </select>
+        </div>
+        <div id="answer-area-${questionIndex}">
+            <!-- Answer fields will be injected here -->
+        </div>
+    `;
+
+    container.appendChild(questionBlock);
+    updateAnswerType(questionIndex); // Initialize with the default answer type
+    questionCounter++;
+}
+
+function removeQuestion(index) {
+    const questionBlock = document.getElementById(`question-block-${index}`);
+    if (questionBlock) {
+        questionBlock.remove();
+    }
+}
+
+function updateAnswerType(index) {
+    const type = document.getElementById(`question_type_${index}`).value;
+    const answerArea = document.getElementById(`answer-area-${index}`);
+    
+    if (type === 'single_response') {
+        answerArea.innerHTML = `
+            <div class="form-group">
+                <label for="answer_${index}">Correct Answer (use $...$ for math)</label>
+                <input type="text" id="answer_${index}" name="answer_${index}" class="form-control" required onkeyup="updateAnswerPreview(${index})">
+                <div class="math-preview" id="answer-preview-${index}"></div>
+            </div>
+        `;
+    } else if (type === 'multiple_choice') {
+        answerArea.innerHTML = `
+            <div class="form-group">
+                <label>Options (select the correct one)</label>
+                <div id="options-container-${index}">
+                    <!-- Options will be injected here -->
+                </div>
+                <button type="button" class="btn-add-option" onclick="addOption(${index})">Add Option</button>
+            </div>
+        `;
+        // Add two default options to start with
+        addOption(index);
+        addOption(index);
+    }
+}
+
+function addOption(questionIndex) {
+    const optionsContainer = document.getElementById(`options-container-${questionIndex}`);
+    const optionIndex = optionsContainer.children.length;
+
+    const optionWrapper = document.createElement('div');
+    optionWrapper.className = 'mc-option-wrapper';
+    optionWrapper.innerHTML = `
+        <div class="mc-option">
+            <input type="radio" id="correct_option_${questionIndex}_${optionIndex}" name="correct_option_${questionIndex}" value="${optionIndex}" required>
+            <input type="text" id="option_text_${questionIndex}_${optionIndex}" name="option_${questionIndex}" class="form-control" placeholder="Option ${optionIndex + 1} (use $...$ for math)" required onkeyup="updateOptionPreview(${questionIndex}, ${optionIndex})">
+        </div>
+        <div class="math-preview" id="option-preview-${questionIndex}-${optionIndex}"></div>
+    `;
+    optionsContainer.appendChild(optionWrapper);
+}
+
+function updateAnswerPreview(index) {
+    const input = document.getElementById(`answer_${index}`);
+    const preview = document.getElementById(`answer-preview-${index}`);
+    preview.innerHTML = input.value;
+    MathJax.typesetPromise([preview]).catch((err) => console.log(err.message));
+}
+
+function updateOptionPreview(questionIndex, optionIndex) {
+    const input = document.getElementById(`option_text_${questionIndex}_${optionIndex}`);
+    const preview = document.getElementById(`option-preview-${questionIndex}-${optionIndex}`);
+    preview.innerHTML = input.value;
+    MathJax.typesetPromise([preview]).catch((err) => console.log(err.message));
+}
+
+function updateMathPreview(index) {
+    const textarea = document.getElementById(`question_text_${index}`);
+    const preview = document.getElementById(`math-preview-${index}`);
+    preview.innerHTML = textarea.value;
+    // Ask MathJax to typeset the preview area
+    MathJax.typesetPromise([preview]).catch((err) => console.log(err.message));
+}
+
+// Add one question by default when the page loads
+window.onload = addQuestion;
+</script>
+{% endblock %}

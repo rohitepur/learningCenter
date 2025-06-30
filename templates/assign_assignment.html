@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+
+{% block title %}Assign Assignment{% endblock %}
+
+{% block content %}
+<div class="form-container">
+    <h2>Assign "{{ assignment.title }}"</h2>
+    <p>Select the classes you want to assign this to. Only active classes are shown.</p>
+    <hr style="margin: 20px 0;">
+    <form method="POST" novalidate>
+        <div class="form-group">
+            <label>Available Classes</label>
+            {% for class in classes %}
+                <div class="checkbox-group">
+                    <input type="checkbox" name="class_ids" value="{{ class._id }}" id="class_{{ class._id }}" {% if class._id in assignment.get('assigned_to_classes', []) %}checked{% endif %}>
+                    <label for="class_{{ class._id }}">{{ class.name }}</label>
+                </div>
+            {% endfor %}
+        </div>
+        <button type="submit">Update Assignment</button>
+    </form>
+</div>
+{% endblock %}

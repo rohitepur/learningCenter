@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+
+{% block title %}Assignment Results{% endblock %}
+
+{% block content %}
+<div class="form-container" style="max-width: 800px;">
+  <h2>Results for: {{ assignment.title }}</h2>
+  <div class="list-item results-summary-score">
+    <h3>Your Score: {{ submission.score }} / {{ submission.total_questions }}</h3>
+  </div>
+  <hr style="margin: 20px 0;">
+
+  {% for question in assignment.questions %}
+  <div class="question-block">
+      <div class="question-header">
+          <h4>Question {{ loop.index }}
+            {% if submission.answers[loop.index0].is_correct %}
+                <span class="text-correct">(Correct)</span>
+            {% else %}
+                <span class="text-incorrect">(Incorrect)</span>
+            {% endif %}
+          </h4>
+      </div>
+      <div class="math-preview">{{ question.text }}</div>
+      <hr style="margin: 15px 0;">
+      
+      <p><strong>Your Answer:</strong> 
+        {% set student_answer = submission.answers[loop.index0].student_answer %}
+        {% if question.type == 'multiple_choice' and student_answer is not none %}
+            {{ question.options[student_answer|int] if student_answer.isdigit() else 'No answer' }}
+        {% else %}
+            {{ student_answer if student_answer is not none else 'No answer' }}
+        {% endif %}
+      </p>
+
+      {% if not submission.answers[loop.index0].is_correct %}
+        <p><strong>Correct Answer:</strong> 
+            {% if question.type == 'multiple_choice' %}{{ question.options[question.answer] }}{% else %}{{ question.answer }}{% endif %}
+        </p>
+      {% endif %}
+  </div>
+  {% endfor %}
+  <a href="{{ url_for('dashboard') }}" class="btn-link btn-secondary btn-full-width">Back to Dashboard</a>
+</div>
+{% endblock %}

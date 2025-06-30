@@ -1,0 +1,14 @@
+name: flask_env
+channels:
+  - defaults
+  - conda-forge
+dependencies:
+  - python=3.10
+  - pip
+  - pip:
+      - flask
+      - flask-pymongo
+      - flask-bcrypt
+      - flask-login
+      - pymongo
+      - python-dotenv

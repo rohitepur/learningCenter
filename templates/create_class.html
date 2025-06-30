@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+
+{% block title %}Create Class{% endblock %}
+
+{% block content %}
+<div class="form-container">
+    <h2>Create a New Class</h2>
+    <p>Fill out the form below to create a new class offering.</p>
+    <hr style="margin: 20px 0;">
+    <form method="POST" novalidate>
+        <div class="form-group">
+            <label for="class_name">Class Name</label>
+            <input type="text" id="class_name" name="class_name" placeholder="e.g., Advanced Calculus" required>
+        </div>
+        <div class="form-group">
+            <label for="start_date">Start Date</label>
+            <input type="date" id="start_date" name="start_date" required>
+        </div>
+        <div class="form-group">
+            <label for="end_date">End Date</label>
+            <input type="date" id="end_date" name="end_date" required>
+        </div>
+        <div class="form-group">
+            <label for="fee">Class Fee</label>
+            <input type="text" id="fee" name="fee" placeholder="e.g., 299.99" required>
+        </div>
+        <div class="form-group checkbox-group">
+            <input type="checkbox" id="is_active" name="is_active" checked>
+            <label for="is_active">Make this class active for registration</label>
+        </div>
+        <button type="submit">Create Class</button>
+    </form>
+</div>
+{% endblock %}

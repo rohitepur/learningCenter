@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block title %}Take Assignment{% endblock %}
+
+{% block content %}
+<div class="form-container" style="max-width: 800px;">
+  <h2>{{ assignment.title }}</h2>
+  <p>Please answer all questions to the best of your ability.</p>
+  <hr style="margin: 20px 0;">
+
+  <form method="POST" id="submission-form" novalidate>
+    {% for question in assignment.questions %}
+    {% set question_loop = loop %}
+    <div class="question-block">
+        <div class="question-header">
+            <h4>Question {{ loop.index }}</h4>
+        </div>
+        <div class="math-preview">{{ question.text }}</div>
+        <hr style="margin: 15px 0;">
+        <div class="form-group">
+            {% if question.type == 'single_response' %}
+                <label for="answer_{{ loop.index0 }}">Your Answer:</label>
+                <input type="text" id="answer_{{ loop.index0 }}" name="answer_{{ loop.index0 }}" class="form-control" required>
+            {% elif question.type == 'multiple_choice' %}
+                <label>Select an option:</label>
+                {% for option in question.options %}
+                <div class="mc-option">
+                    <input type="radio" id="option_{{ question_loop.index0 }}_{{ loop.index0 }}" name="answer_{{ question_loop.index0 }}" value="{{ loop.index0 }}" required>
+                    <label for="option_{{ question_loop.index0 }}_{{ loop.index0 }}" style="font-weight: normal; margin-bottom: 0;">{{ option }}</label>
+                </div>
+                {% endfor %}
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+    <button type="submit">Submit Assignment</button>
+  </form>
+</div>
+{% endblock %}

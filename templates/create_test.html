@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+
+{% block title %}Create Test{% endblock %}
+
+{% block content %}
+<div class="form-container">
+  <h2>Create a New Test</h2>
+  <form method="POST" novalidate>
+    <div class="form-group">
+      <label for="title">Test Title</label>
+      <input type="text" id="title" name="title" required>
+    </div>
+    <hr style="margin: 20px 0;">
+    {% for i in range(1, 6) %}
+      <div class="form-group">
+        <label for="q{{ i }}">Question {{ i }}</label>
+        <input id="q{{ i }}" name="q{{ i }}" placeholder="Enter question text" required>
+        <input name="a{{ i }}" placeholder="Enter the answer" required style="margin-top: 5px;">
+      </div>
+    {% endfor %}
+    <button type="submit">Create Test</button>
+  </form>
+</div>
+{% endblock %}
