@@ -5,6 +5,7 @@ from flask_login import LoginManager, login_user, logout_user, login_required, U
 from bson.objectid import ObjectId
 from dotenv import load_dotenv
 from datetime import datetime
+import calendar
 import os
 
 load_dotenv() # Load environment variables from .env file
@@ -57,7 +58,10 @@ def load_user(user_id):
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+    # Fetch all active classes
+    # Sort by start_date in ascending order (1) to show the soonest classes first.
+    active_classes = list(mongo.db.classes.find({'is_active': True}).sort('start_date', 1))
+    return render_template('index.html', classes=active_classes)
 
 
 @app.route('/register', methods=['GET', 'POST'])
@@ -177,9 +181,13 @@ def create_assignment():
                 options = request.form.getlist(f'option_{i}')
                 correct_option_index = request.form.get(f'correct_option_{i}')
                 
+                if not options or correct_option_index is None:
+                    flash(f'Error in Question {i+1}: A multiple-choice question must have options and a selected correct answer.', 'error')
+                    return redirect(url_for('create_assignment'))
+
                 question_data['options'] = options
                 # Store the index of the correct answer
-                question_data['answer'] = int(correct_option_index) if correct_option_index else None
+                question_data['answer'] = int(correct_option_index)
             
             questions.append(question_data)
 
@@ -191,6 +199,60 @@ def create_assignment():
         flash('Assignment created successfully!', 'success')
         return redirect(url_for('dashboard'))
     return render_template('create_assignment.html')
+
+# ---------------------------- Assignment Edit (Teacher) ----------------------------
+@app.route('/edit_assignment/<assignment_id>', methods=['GET', 'POST'])
+@login_required
+def edit_assignment(assignment_id):
+    if current_user.role != 'teacher':
+        abort(403)
+
+    assignment = mongo.db.assignments.find_one_or_404({'_id': ObjectId(assignment_id)})
+    # Security check: ensure the teacher owns this assignment
+    if assignment['created_by'] != ObjectId(current_user.id):
+        abort(403)
+
+    if request.method == 'POST':
+        title = request.form.get('title')
+        question_texts = request.form.getlist('question_text')
+        question_types = request.form.getlist('question_type')
+
+        if not title or not question_texts:
+            flash('An assignment must have a title and at least one question.', 'error')
+            return redirect(url_for('edit_assignment', assignment_id=assignment_id))
+
+        questions = []
+        for i, text in enumerate(question_texts):
+            q_type = question_types[i]
+            question_data = {"text": text, "type": q_type}
+
+            if q_type == 'single_response':
+                question_data['answer'] = request.form.get(f'answer_{i}')
+            elif q_type == 'multiple_choice':
+                options = request.form.getlist(f'option_{i}')
+                correct_option_index = request.form.get(f'correct_option_{i}')
+                
+                if not options or correct_option_index is None:
+                    flash(f'Error in Question {i+1}: A multiple-choice question must have options and a selected correct answer.', 'error')
+                    return redirect(url_for('edit_assignment', assignment_id=assignment_id))
+
+                question_data['options'] = options
+                question_data['answer'] = int(correct_option_index)
+            
+            questions.append(question_data)
+
+        mongo.db.assignments.update_one(
+            {'_id': ObjectId(assignment_id)},
+            {'$set': {
+                'title': title,
+                'questions': questions
+            }}
+        )
+        flash('Assignment updated successfully!', 'success')
+        return redirect(url_for('dashboard'))
+
+    # For GET request, pass the assignment data to the template
+    return render_template('edit_assignment.html', assignment=assignment)
 
 # ---------------------------- Assign Assignment (Teacher) ----------------------------
 @app.route('/assign_assignment/<assignment_id>', methods=['GET', 'POST'])
@@ -259,6 +321,44 @@ def create_class():
 
     return render_template('create_class.html')
 
+# ---------------------------- Class Edit (Teacher) ----------------------------
+@app.route('/edit_class/<class_id>', methods=['GET', 'POST'])
+@login_required
+def edit_class(class_id):
+    if current_user.role != 'teacher':
+        abort(403)
+
+    class_obj = mongo.db.classes.find_one_or_404({'_id': ObjectId(class_id)})
+    # Security check: ensure the teacher owns this class
+    if class_obj['created_by'] != ObjectId(current_user.id):
+        abort(403)
+
+    if request.method == 'POST':
+        class_name = request.form.get('class_name')
+        start_date = request.form.get('start_date')
+        end_date = request.form.get('end_date')
+        fee = request.form.get('fee')
+        is_active = 'is_active' in request.form
+
+        if not all([class_name, start_date, end_date, fee]):
+            flash('Please fill out all fields.', 'error')
+            return redirect(url_for('edit_class', class_id=class_id))
+
+        mongo.db.classes.update_one(
+            {'_id': ObjectId(class_id)},
+            {'$set': {
+                'name': class_name,
+                'start_date': start_date,
+                'end_date': end_date,
+                'fee': fee,
+                'is_active': is_active
+            }}
+        )
+
+        flash(f'Class "{class_name}" updated successfully!', 'success')
+        return redirect(url_for('dashboard'))
+
+    return render_template('edit_class.html', class_obj=class_obj)
 # ---------------------------- Class Registration ----------------------------
 @app.route('/register_class', methods=['GET', 'POST'])
 @login_required

@@ -1,14 +1,14 @@
 {% extends "base.html" %}
 
-{% block title %}Create Assignment{% endblock %}
+{% block title %}Edit Assignment{% endblock %}
 
 {% block content %}
 <div class="form-container" style="max-width: 800px;">
-  <h2>Create a New Assignment</h2>
-  <form method="POST" id="assignment-form" novalidate>
+  <h2>Edit Assignment</h2>
+  <form method="POST" id="assignment-form" action="{{ url_for('edit_assignment', assignment_id=assignment._id) }}" novalidate>
     <div class="form-group">
       <label for="title">Assignment Title</label>
-      <input type="text" id="title" name="title" required>
+      <input type="text" id="title" name="title" value="{{ assignment.title }}" required>
     </div>
     <hr style="margin: 20px 0;">
 
@@ -17,14 +17,17 @@
     </div>
 
     <button type="button" class="btn-add-question" onclick="addQuestion()">Add Question</button>
-    <button type="submit">Create Assignment</button>
+    <button type="submit">Update Assignment</button>
   </form>
 </div>
 
 <script>
 let questionCounter = 0;
 
-function addQuestion() {
+// Pass assignment data from Flask to JavaScript
+const assignmentData = {{ assignment.questions|tojson }};
+
+function addQuestion(questionData = null) {
     const container = document.getElementById('questions-container');
     const questionIndex = questionCounter;
 
@@ -54,7 +57,18 @@ function addQuestion() {
     `;
 
     container.appendChild(questionBlock);
-    updateAnswerType(questionIndex); // Initialize with the default answer type
+
+    if (questionData) {
+        // Pre-fill the form fields if data is provided
+        const questionText = document.getElementById(`question_text_${questionIndex}`);
+        questionText.value = questionData.text;
+        updateMathPreview(questionIndex);
+
+        const questionType = document.getElementById(`question_type_${questionIndex}`);
+        questionType.value = questionData.type;
+    }
+
+    updateAnswerType(questionIndex, questionData);
     questionCounter++;
 }
 
@@ -65,7 +79,7 @@ function removeQuestion(index) {
     }
 }
 
-function updateAnswerType(index) {
+function updateAnswerType(index, questionData = null) {
     const type = document.getElementById(`question_type_${index}`).value;
     const answerArea = document.getElementById(`answer-area-${index}`);
     
@@ -77,23 +91,33 @@ function updateAnswerType(index) {
                 <div class="math-preview" id="answer-preview-${index}"></div>
             </div>
         `;
+        if (questionData && questionData.type === 'single_response') {
+            const answerInput = document.getElementById(`answer_${index}`);
+            answerInput.value = questionData.answer;
+            updateAnswerPreview(index);
+        }
     } else if (type === 'multiple_choice') {
         answerArea.innerHTML = `
             <div class="form-group">
                 <label>Options (select the correct one)</label>
-                <div id="options-container-${index}">
-                    <!-- Options will be injected here -->
-                </div>
+                <div id="options-container-${index}"></div>
                 <button type="button" class="btn-add-option" onclick="addOption(${index})">Add Option</button>
             </div>
         `;
-        // Add two default options to start with
-        addOption(index);
-        addOption(index);
+        if (questionData && questionData.type === 'multiple_choice') {
+            questionData.options.forEach((optionText, optionIndex) => {
+                const isCorrect = (optionIndex === questionData.answer);
+                addOption(index, optionText, isCorrect);
+            });
+        } else {
+            // Add two default options if it's a new MC question
+            addOption(index);
+            addOption(index);
+        }
     }
 }
 
-function addOption(questionIndex) {
+function addOption(questionIndex, optionText = '', isCorrect = false) {
     const optionsContainer = document.getElementById(`options-container-${questionIndex}`);
     const optionIndex = optionsContainer.children.length;
 
@@ -107,6 +131,13 @@ function addOption(questionIndex) {
         <div class="math-preview" id="option-preview-${questionIndex}-${optionIndex}"></div>
     `;
     optionsContainer.appendChild(optionWrapper);
+
+    // Pre-fill option data if provided
+    document.getElementById(`option_text_${questionIndex}_${optionIndex}`).value = optionText;
+    if (isCorrect) {
+        document.getElementById(`correct_option_${questionIndex}_${optionIndex}`).checked = true;
+    }
+    updateOptionPreview(questionIndex, optionIndex);
 }
 
 function updateAnswerPreview(index) {
@@ -127,11 +158,12 @@ function updateMathPreview(index) {
     const textarea = document.getElementById(`question_text_${index}`);
     const preview = document.getElementById(`math-preview-${index}`);
     preview.innerHTML = textarea.value;
-    // Ask MathJax to typeset the preview area
     MathJax.typesetPromise([preview]).catch((err) => console.log(err.message));
 }
 
-// Add one question by default when the page loads
-window.onload = addQuestion;
+// Load existing questions when the page loads
+window.onload = () => {
+    assignmentData.forEach(q => addQuestion(q));
+};
 </script>
 {% endblock %}

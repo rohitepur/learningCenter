@@ -24,6 +24,12 @@
             justify-content: space-between;
             align-items: center;
             height: 60px;
+            padding: 0 10px; /* Add some horizontal padding */
+        }
+        .navbar-logo {
+            height: 40px; /* Adjust as needed */
+            margin-right: 15px;
+            vertical-align: middle; /* Aligns logo nicely with text */
         }
         .navbar a {
             color: #ecf0f1; /* Light text for contrast on dark background */
@@ -95,12 +101,15 @@
             color: #555;
         }
         .form-group input,
-        .form-group select {
+        .form-group select,
+        .form-group textarea {
             width: 100%;
             padding: 10px;
             border: 1px solid #ccc;
             border-radius: 4px;
             box-sizing: border-box; /* Ensures padding doesn't affect width */
+            font-family: inherit; /* Ensure textarea uses the same font */
+            font-size: 1rem; /* Consistent font size */
         }
         button[type="submit"] {
             width: 100%;
@@ -261,6 +270,10 @@
             justify-content: space-between;
             align-items: center;
         }
+        .list-item-actions {
+            display: flex;
+            gap: 10px;
+        }
         .status-badge {
             color: white;
             padding: 3px 8px;
@@ -285,12 +298,51 @@
             background-color: #6c757d;
             color: white;
         }
+        /* --- Calendar Styles --- */
+        .calendar-container {
+            background-color: #ffffff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .calendar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .calendar-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .calendar-table th, .calendar-table td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: left;
+            vertical-align: top;
+            width: 14.28%; /* 100 / 7 */
+            height: 120px;
+        }
+        .calendar-table th {
+            background-color: #f4f4f9;
+        }
+        .calendar-day-number {
+            font-weight: bold;
+        }
+        .calendar-event {
+            font-size: 12px;
+            background-color: #e3f2fd;
+            border-left: 3px solid #007bff;
+            padding: 5px;
+            margin-top: 5px;
+            border-radius: 3px;
+        }
     </style>
 </head>
 <body>
     <nav class="navbar">
         <div class="nav-left">
-            <a href="{{ url_for('index') }}">Home</a>
+            <a href="{{ url_for('index') }}"><img src="{{ url_for('static', filename='images/logo.png') }}" alt="Logo" class="navbar-logo">Home</a>
             {% if current_user.is_authenticated %}
                 <a href="{{ url_for('dashboard') }}">Dashboard</a>
                 {% if current_user.role == 'teacher' %}
@@ -301,6 +353,7 @@
                 {% if current_user.role == 'student' %}
                     <a href="{{ url_for('register_class') }}">Register for Class</a>
                 {% endif %}
+            {% else %}
             {% endif %}
         </div>
         <div class="nav-right">

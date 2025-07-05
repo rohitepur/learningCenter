@@ -16,9 +16,12 @@
                     <li class="list-item">
                         <div class="list-item-container">
                             <span>{{ assignment.title }}</span>
-                            <a href="{{ url_for('assign_assignment', assignment_id=assignment._id) }}" class="btn-link btn-assign">
-                                Assign
-                            </a>
+                            <div class="list-item-actions">
+                                <a href="{{ url_for('edit_assignment', assignment_id=assignment._id) }}" class="btn-link btn-secondary">Edit</a>
+                                <a href="{{ url_for('assign_assignment', assignment_id=assignment._id) }}" class="btn-link btn-assign">
+                                    Assign
+                                </a>
+                            </div>
                         </div>
                     </li>
                 {% endfor %}
@@ -41,6 +44,9 @@
                             {% else %}
                                 <span class="status-badge status-inactive">Inactive</span>
                             {% endif %}
+                            <a href="{{ url_for('edit_class', class_id=class._id) }}" class="btn-link">
+                                Edit
+                            </a>
                         </div>
                     </li>
                 {% endfor %}

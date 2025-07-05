@@ -1,8 +1,30 @@
 {% extends "base.html" %}
 
-{% block title %}Welcome{% endblock %}
+{% block title %}Welcome to EdHelper LLC{% endblock %}
 
 {% block content %}
-    <h1>Welcome to the Math Test App</h1>
-    <p>Please log in or register to get started.</p>
+<div class="form-container" style="max-width: 800px; text-align: center;">
+    <img src="{{ url_for('static', filename='images/logo.png') }}" alt="EdHelper LLC Logo" style="max-width: 200px; margin-bottom: 20px;">
+    <h2>Welcome to EdHelper LLC</h2>
+    <p style="text-align: left; line-height: 1.6;">
+        EdHelper LLC is dedicated to providing top-tier educational resources for students and teachers. Our platform offers a dynamic and interactive learning environment, specializing in mathematics. Teachers can create, manage, and assign custom tests, while students can engage with the material, take assignments, and track their progress in real-time. Our goal is to make learning more accessible, effective, and engaging for everyone.
+    </p>
+    <hr style="margin: 30px 0;">
+
+    {% if classes %}
+        <div style="text-align: left;">
+            <h3>Upcoming Active Classes</h3>
+            <ul class="list-unstyled">
+                {% for class in classes %}
+                    <li class="list-item">
+                        <strong>{{ class.name }}</strong> | Starts: {{ class.start_date }} | Fee: ${{ class.fee }}
+                    </li>
+                {% endfor %}
+            </ul>
+        </div>
+        <hr style="margin: 30px 0;">
+    {% endif %}
+
+    <a href="{{ url_for('register') }}" class="btn-link btn-primary btn-full-width">Get Started</a>
+</div>
 {% endblock %}

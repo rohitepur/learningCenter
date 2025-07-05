@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block title %}Class Schedule{% endblock %}
+
+{% block content %}
+<div class="calendar-container">
+    <div class="calendar-header">
+        <h2>{{ month_name }} {{ year }}</h2>
+        <!-- In a future version, you could add next/prev month links here -->
+    </div>
+    <table class="calendar-table">
+        <thead>
+            <tr>
+                <th>Mon</th>
+                <th>Tue</th>
+                <th>Wed</th>
+                <th>Thu</th>
+                <th>Fri</th>
+                <th>Sat</th>
+                <th>Sun</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for week in calendar %}
+            <tr>
+                {% for day in week %}
+                <td>
+                    {% if day != 0 %}
+                        <div class="calendar-day-number">{{ day }}</div>
+                        {% if events[day] %}
+                            {% for event in events[day] %}
+                                <div class="calendar-event">{{ event }}</div>
+                            {% endfor %}
+                        {% endif %}
+                    {% endif %}
+                </td>
+                {% endfor %}
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
