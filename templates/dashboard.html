@@ -26,6 +26,27 @@
                     </li>
                 {% endfor %}
             </ul>
+            
+            {% if total_pages > 1 %}
+            <div class="pagination" style="text-align: center; margin-top: 20px;">
+                {% if page > 1 %}
+                    <a href="{{ url_for('dashboard', page=page-1) }}">&laquo; Previous</a>
+                {% endif %}
+            
+                {% for p in range(1, total_pages + 1) %}
+                    {% if p == page %}
+                        <a href="#" style="font-weight: bold; padding: 5px;">{{ p }}</a>
+                    {% else %}
+                        <a href="{{ url_for('dashboard', page=p) }}" style="padding: 5px;">{{ p }}</a>
+                    {% endif %}
+                {% endfor %}
+            
+                {% if page < total_pages %}
+                    <a href="{{ url_for('dashboard', page=page+1) }}">Next &raquo;</a>
+                {% endif %}
+            </div>
+            {% endif %}
+
         {% else %}
             <p>You haven't created any assignments yet.</p>
             <a href="{{ url_for('create_assignment') }}" style="text-decoration: none;"><button type="button">Create Your First Assignment</button></a>
@@ -39,28 +60,41 @@
                     <li class="list-item">
                         <div class="list-item-container">
                             <span>{{ class.name }} ({{ class.start_date }} to {{ class.end_date }})</span>
-                            {% if class.is_active %}
-                                <span class="status-badge status-active">Active</span>
-                            {% else %}
-                                <span class="status-badge status-inactive">Inactive</span>
-                            {% endif %}
-                            <a href="{{ url_for('edit_class', class_id=class._id) }}" class="btn-link">
-                                Edit
-                            </a>
+                            <div class="list-item-actions">
+                                {% if class.is_active %}
+                                    <span class="status-badge status-active">Active</span>
+                                {% else %}
+                                    <span class="status-badge status-inactive">Inactive</span>
+                                {% endif %}
+                                <a href="{{ url_for('edit_class', class_id=class._id) }}" class="btn-link">Edit</a>
+                                <a href="{{ url_for('upload_pdf', class_id=class._id) }}" class="btn-link btn-secondary">Upload PDF</a>
+                            </div>
                         </div>
                     </li>
                 {% endfor %}
             </ul>
         {% endif %}
+
     {% elif current_user.role == 'student' %}
-        {# Student view of registered classes #}
         <hr style="margin: 20px 0;">
         <h3>Your Registered Classes</h3>
-        {% if registrations %}
+        {% if student_classes %}
             <ul class="list-unstyled">
-                {% for reg in registrations %}
+                {% for class in student_classes %}
                     <li class="list-item">
-                        <strong>{{ reg.class_name }}</strong> - Registered on {{ reg.registration_date.strftime('%b %d, %Y') }}
+                        <strong>{{ class.name }}</strong>
+                        {% if class.uploaded_files %}
+                            <div style="margin-top: 10px; padding-left: 20px;">
+                                <strong>Class Materials:</strong>
+                                <ul style="list-style-type: disc; margin-top: 5px;">
+                                    {% for file in class.uploaded_files %}
+                                        <li>
+                                            <a href="{{ url_for('uploaded_file', filename=file.filename) }}" target="_blank">{{ file.filename }}</a>
+                                        </li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                        {% endif %}
                     </li>
                 {% endfor %}
             </ul>

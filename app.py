@@ -1,9 +1,11 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, abort
+from flask import Flask, render_template, request, redirect, url_for, flash, abort, send_from_directory
 from flask_pymongo import PyMongo
 from flask_bcrypt import Bcrypt
 from flask_login import LoginManager, login_user, logout_user, login_required, UserMixin, current_user
 from bson.objectid import ObjectId
 from dotenv import load_dotenv
+from werkzeug.utils import secure_filename
+import math
 from datetime import datetime
 import calendar
 import os
@@ -15,6 +17,7 @@ app = Flask(__name__)
 # The second argument to .get() is a default value, useful for local development.
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY')
 app.config['MONGO_URI'] = os.environ.get('MONGO_URI')
+app.config['UPLOAD_FOLDER'] = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
 
 # --- Configuration Validation ---
 # Ensure essential variables are set, otherwise raise a clear error.
@@ -118,32 +121,60 @@ def login():
 @app.route('/dashboard')
 @login_required
 def dashboard():
-    tests = []
+    # Initialize all variables that will be passed to the template
     assignments = []
     classes = []
     registrations = []
     student_assignments = []
+    student_classes = []
     submissions_map = {}
+    page = 1
+    total_pages = 1
 
     # If the user is a teacher, find all tests they have created.
     if current_user.role == 'teacher':
-        assignments = list(mongo.db.assignments.find({'created_by': ObjectId(current_user.id)}))
+        page = request.args.get('page', 1, type=int)
+        per_page = 5  # Number of assignments per page
+
+        query = {'created_by': ObjectId(current_user.id)}
+        total_assignments = mongo.db.assignments.count_documents(query)
+        
+        # Fetch paginated assignments, sorted by most recent first
+        assignments = list(mongo.db.assignments.find(query)
+                                             .sort('created_at', -1)
+                                             .skip((page - 1) * per_page)
+                                             .limit(per_page))
+        
+        if per_page > 0:
+            total_pages = math.ceil(total_assignments / per_page)
+        else:
+            total_pages = 1
+
         classes = list(mongo.db.classes.find({'created_by': ObjectId(current_user.id)}))
+
     # If the user is a student, find their class registrations.
     elif current_user.role == 'student':
         registrations = list(mongo.db.class_registrations.find({'student_id': ObjectId(current_user.id)}))
-        # Safely get class_id, only for documents that have it.
         registered_class_ids = [reg['class_id'] for reg in registrations if 'class_id' in reg]
         
+        # Fetch the full class objects for the student
+        student_classes = list(mongo.db.classes.find({'_id': {'$in': registered_class_ids}}))
+
         # Find assignments for the classes the student is in
         student_assignments = list(mongo.db.assignments.find({'assigned_to_classes': {'$in': registered_class_ids}}))
         
-        # Find which assignments the student has already submitted
         submissions = list(mongo.db.submissions.find({'student_id': ObjectId(current_user.id)}))
-        # Create a map of assignment_id -> submission_id for linking to results
         submissions_map = {str(sub['assignment_id']): str(sub['_id']) for sub in submissions}
 
-    return render_template('dashboard.html', assignments=assignments, registrations=registrations, classes=classes, student_assignments=student_assignments, submissions_map=submissions_map)
+    return render_template('dashboard.html', 
+                           assignments=assignments, 
+                           registrations=registrations, 
+                           classes=classes, 
+                           student_assignments=student_assignments, 
+                           student_classes=student_classes,
+                           submissions_map=submissions_map,
+                           page=page,
+                           total_pages=total_pages)
 
 
 @app.route('/logout')
@@ -194,7 +225,8 @@ def create_assignment():
         mongo.db.assignments.insert_one({
             'title': title,
             'questions': questions,
-            'created_by': ObjectId(current_user.id) # Track who created the test
+            'created_by': ObjectId(current_user.id), # Track who created the test
+            'created_at': datetime.utcnow()
         })
         flash('Assignment created successfully!', 'success')
         return redirect(url_for('dashboard'))
@@ -359,6 +391,43 @@ def edit_class(class_id):
         return redirect(url_for('dashboard'))
 
     return render_template('edit_class.html', class_obj=class_obj)
+
+# ---------------------------- PDF Upload (Teacher) ----------------------------
+@app.route('/upload_pdf/<class_id>', methods=['GET', 'POST'])
+@login_required
+def upload_pdf(class_id):
+    if current_user.role != 'teacher':
+        abort(403)
+
+    class_obj = mongo.db.classes.find_one_or_404({'_id': ObjectId(class_id)})
+    if class_obj['created_by'] != ObjectId(current_user.id):
+        abort(403)
+
+    if request.method == 'POST':
+        if 'pdf_file' not in request.files:
+            flash('No file part', 'error')
+            return redirect(request.url)
+        file = request.files['pdf_file']
+        if file.filename == '':
+            flash('No selected file', 'error')
+            return redirect(request.url)
+        if file and file.filename.endswith('.pdf'):
+            filename = secure_filename(file.filename)
+            file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+            
+            # Add file info to the class document
+            mongo.db.classes.update_one(
+                {'_id': ObjectId(class_id)},
+                {'$push': {'uploaded_files': {'filename': filename}}}
+            )
+            flash('File uploaded successfully!', 'success')
+            return redirect(url_for('dashboard'))
+
+    return render_template('upload_pdf.html', class_obj=class_obj)
+
+@app.route('/uploads/<filename>')
+def uploaded_file(filename):
+    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 # ---------------------------- Class Registration ----------------------------
 @app.route('/register_class', methods=['GET', 'POST'])
 @login_required

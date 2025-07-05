@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+
+{% block title %}Upload PDF to {{ class_obj.name }}{% endblock %}
+
+{% block content %}
+<div class="form-container">
+    <h2>Upload PDF to: {{ class_obj.name }}</h2>
+    <form method="POST" enctype="multipart/form-data">
+        <div class="form-group">
+            <label for="pdf_file">Select PDF File</label>
+            <input type="file" id="pdf_file" name="pdf_file" accept=".pdf" required>
+        </div>
+        <button type="submit">Upload File</button>
+    </form>
+</div>
+{% endblock %}
