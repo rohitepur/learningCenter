@@ -347,13 +347,9 @@
                 <a href="{{ url_for('dashboard') }}">Dashboard</a>
                 {% if current_user.role == 'teacher' %}
                     <a href="{{ url_for('create_assignment') }}">Create Assignment</a>
-                    <a href="{{ url_for('create_class') }}">Create Class</a>
+                    <a href="{{ url_for('create_assignment_template')}}">Create Template</a>
                     <a href="{{ url_for('assignment_tracking') }}">Track Assignments</a>
                 {% endif %}
-                {% if current_user.role == 'student' %}
-                    <a href="{{ url_for('register_class') }}">Register for Class</a>
-                {% endif %}
-            {% else %}
             {% endif %}
         </div>
         <div class="nav-right">
@@ -367,23 +363,18 @@
         </div>
     </nav>
 
-    <main class="content">
+    <div class="content">
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
                 {% for category, message in messages %}
-                    <div class="alert alert-{{ category }}">{{ message }}</div>
+                    <div class="alert alert-{{ category if category != 'error' else 'danger' }}">{{ message }}</div>
                 {% endfor %}
             {% endif %}
         {% endwith %}
         {% block content %}{% endblock %}
-    </main>
+    </div>
 
-    <!-- Add MathJax for rendering mathematical formulas -->
-    <script>
-        MathJax = {
-          tex: {inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$', '$$'], ['\\[', '\\]']]}
-        };
-    </script>
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
     <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
 </body>
 </html>

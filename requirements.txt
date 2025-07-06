@@ -1,0 +1,8 @@
+Flask==3.0.3
+Flask-PyMongo==2.3.0
+Flask-Bcrypt==1.0.1
+Flask-Login==0.6.3
+python-dotenv==1.0.1
+gunicorn==22.0.0
+google-generativeai==0.7.1
+asteval==0.9.31

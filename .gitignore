@@ -1,6 +1,15 @@
-# Environment variables
+# --- User Uploads ---
+# Exclude the folder containing user-uploaded files.
+uploads/
+
+# --- Environment ---
+# Exclude the virtual environment folder.
+flask_env/
+
+# Exclude environment variables file for security.
 .env
 
-# Python cache
+# --- Python ---
+# Exclude Python cache files and compiled files.
 __pycache__/
 *.pyc

@@ -12,3 +12,6 @@ dependencies:
       - flask-login
       - pymongo
       - python-dotenv
+      - gunicorn
+      - google-generativeai
+      - asteval

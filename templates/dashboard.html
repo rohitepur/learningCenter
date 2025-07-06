@@ -9,7 +9,30 @@
 
     {% if current_user.role == 'teacher' %}
         <hr style="margin: 20px 0;">
-        <h3>Your Created Assignments</h3>
+        <h3>Your Assignment Templates</h3>
+        {% if assignment_templates %}
+            <ul class="list-unstyled">
+                {% for template in assignment_templates %}
+                    <li class="list-item">
+                        <div class="list-item-container">
+                            <span>{{ template.title }}</span>
+                            <div class="list-item-actions">
+                                <a href="{{ url_for('generate_assignment_from_template', template_id=template._id) }}" class="btn-link btn-assign">
+                                    Generate Assignment
+                                </a>
+                            </div>
+                        </div>
+                    </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p>You haven't created any assignment templates yet.</p>
+        {% endif %}
+        <a href="{{ url_for('create_assignment_template') }}" style="text-decoration: none;"><button type="button">Create a New Template</button></a>
+
+
+        <hr style="margin: 20px 0;">
+        <h3>Your Generated Assignments</h3>
         {% if assignments %}
             <ul class="list-unstyled">
                 {% for assignment in assignments %}

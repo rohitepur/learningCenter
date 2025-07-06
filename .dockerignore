@@ -1,0 +1,18 @@
+# Git and VSCode
+.git
+.gitignore
+.vscode
+
+# Environment
+venv/
+.venv/
+flask_env/
+.env*
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# User Uploads
+uploads/
