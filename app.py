@@ -1,21 +1,14 @@
-# Standard library imports
-import calendar
-import math
-from datetime import datetime
-import os
-import re
-import random
-
-# Third-party imports
-from asteval import Interpreter
-from bson.objectid import ObjectId
-from dotenv import load_dotenv
 from flask import Flask, render_template, request, redirect, url_for, flash, abort, send_from_directory
+from flask_pymongo import PyMongo
 from flask_bcrypt import Bcrypt
 from flask_login import LoginManager, login_user, logout_user, login_required, UserMixin, current_user
-from flask_pymongo import PyMongo
+from bson.objectid import ObjectId
+from dotenv import load_dotenv
 from werkzeug.utils import secure_filename
-
+import math
+from datetime import datetime
+import calendar
+import os
 
 load_dotenv() # Load environment variables from .env file
 
@@ -128,140 +121,60 @@ def login():
 @app.route('/dashboard')
 @login_required
 def dashboard():
-    # Initialize all variables that will be passed to the template
-    assignments = []
-    classes = []
-    registrations = []
-    student_assignments = []
+    # Initialize variables for both roles
     student_classes = []
+    student_assignments = []
     submissions_map = {}
-    assignment_templates = []
-    page = 1
-    total_pages = 1
+    classes_with_assignments = []
+    unassigned_assignments = []
 
-    # If the user is a teacher, find all tests they have created.
     if current_user.role == 'teacher':
-        page = request.args.get('page', 1, type=int)
-        per_page = 5  # Number of assignments per page
+        # Fetch all classes created by the teacher, sorted by name
+        classes = list(mongo.db.classes.find({'created_by': ObjectId(current_user.id)}).sort('name', 1))
 
-        query = {'created_by': ObjectId(current_user.id)}
-        total_assignments = mongo.db.assignments.count_documents(query)
+        # For each class, find its assigned assignments
+        for a_class in classes:
+            a_class['assignments'] = list(mongo.db.assignments.find({
+                'created_by': ObjectId(current_user.id),
+                'assigned_to_classes': a_class['_id']
+            }).sort('created_at', -1))
         
-        # Fetch paginated assignments, sorted by most recent first
-        assignments = list(mongo.db.assignments.find(query)
-                                             .sort('created_at', -1)
-                                             .skip((page - 1) * per_page)
-                                             .limit(per_page))
-        
-        if per_page > 0:
-            total_pages = math.ceil(total_assignments / per_page)
-        else:
-            total_pages = 1
+        classes_with_assignments = classes
 
-        classes = list(mongo.db.classes.find({'created_by': ObjectId(current_user.id)}))
-        assignment_templates = list(mongo.db.assignment_templates.find({'created_by': ObjectId(current_user.id)}))
+        # Find all assignments that are not assigned to any class
+        unassigned_assignments = list(mongo.db.assignments.find({
+            'created_by': ObjectId(current_user.id),
+            'assigned_to_classes': {'$exists': False, '$eq': []}
+        }).sort('created_at', -1))
 
-
-    # If the user is a student, find their class registrations.
     elif current_user.role == 'student':
+        # Fetch student's registered class IDs
         registrations = list(mongo.db.class_registrations.find({'student_id': ObjectId(current_user.id)}))
         registered_class_ids = [reg['class_id'] for reg in registrations if 'class_id' in reg]
         
-        # Fetch the full class objects for the student
+        # Fetch the full class objects
         student_classes = list(mongo.db.classes.find({'_id': {'$in': registered_class_ids}}))
 
-        # Find assignments for the classes the student is in
-        student_assignments = list(mongo.db.assignments.find({'assigned_to_classes': {'$in': registered_class_ids}}))
+        # Find assignments for those classes
+        if registered_class_ids:
+            student_assignments = list(mongo.db.assignments.find({'assigned_to_classes': {'$in': registered_class_ids}}))
         
+        # Map submissions for easy lookup
         submissions = list(mongo.db.submissions.find({'student_id': ObjectId(current_user.id)}))
         submissions_map = {str(sub['assignment_id']): str(sub['_id']) for sub in submissions}
 
     return render_template('dashboard.html', 
-                           assignments=assignments, 
-                           registrations=registrations, 
-                           classes=classes, 
-                           student_assignments=student_assignments, 
+                           classes_with_assignments=classes_with_assignments,
+                           unassigned_assignments=unassigned_assignments,
                            student_classes=student_classes,
-                           submissions_map=submissions_map,
-                           assignment_templates=assignment_templates,
-                           page=page,
-                           total_pages=total_pages)
-
+                           student_assignments=student_assignments,
+                           submissions_map=submissions_map)
 
 @app.route('/logout')
 @login_required
 def logout():
     logout_user()
     return redirect(url_for('index'))
-
-# ---------------------------- Assignment Template Creation ----------------------------
-@app.route('/create_assignment_template', methods=['GET', 'POST'])
-@login_required
-def create_assignment_template():
-    if current_user.role != 'teacher':
-        abort(403)
-
-    if request.method == 'POST':
-        title = request.form.get('title')
-        question_texts = request.form.getlist('question_text')
-        question_types = request.form.getlist('question_type')
-
-        if not title or not question_texts:
-            flash('A template must have a title and at least one question.', 'error')
-            return redirect(url_for('create_assignment_template'))
-
-        questions = []
-        for i, text in enumerate(question_texts):
-            q_type = question_types[i]
-            question_data = {"text": text, "type": q_type}
-
-            if q_type == 'single_response':
-                question_data['answer'] = request.form.get(f'answer_{i}')
-            elif q_type == 'multiple_choice':
-                options = request.form.getlist(f'option_{i}')
-                correct_option_index = request.form.get(f'correct_option_{i}')
-                
-                if not options or correct_option_index is None:
-                    flash(f'Error in Question {i+1}: A multiple-choice question must have options and a selected correct answer.', 'error')
-                    return redirect(url_for('create_assignment_template'))
-
-                question_data['options'] = options
-                question_data['answer'] = int(correct_option_index)
-            
-            questions.append(question_data)
-
-        mongo.db.assignment_templates.insert_one({
-            'title': title,
-            'questions': questions,
-            'created_by': ObjectId(current_user.id),
-            'created_at': datetime.utcnow()
-        })
-        flash('Assignment template created successfully!', 'success')
-        return redirect(url_for('dashboard'))
-    return render_template('create_assignment_template.html')
-
-# ---------------------------- Generate Assignment from Template ----------------------------
-@app.route('/generate_assignment_from_template/<template_id>', methods=['GET', 'POST'])
-@login_required
-def generate_assignment_from_template(template_id):
-    if current_user.role != 'teacher':
-        abort(403)
-
-    template = mongo.db.assignment_templates.find_one_or_404({'_id': ObjectId(template_id)})
-    if template['created_by'] != ObjectId(current_user.id):
-        abort(403)
-    
-    new_assignment = {
-        'title': template['title'],
-        'questions': template['questions'],
-        'created_by': ObjectId(current_user.id),
-        'created_at': datetime.utcnow(),
-        'template_id': ObjectId(template_id)
-    }
-    
-    assignment_id = mongo.db.assignments.insert_one(new_assignment).inserted_id
-    flash(f"New assignment generated from template '{template['title']}'. Now, assign it to a class.", 'success')
-    return redirect(url_for('assign_assignment', assignment_id=assignment_id))
 
 # ---------------------------- Assignment Creation ----------------------------
 @app.route('/create_assignment', methods=['GET', 'POST'])
@@ -311,6 +224,54 @@ def create_assignment():
         flash('Assignment created successfully!', 'success')
         return redirect(url_for('dashboard'))
     return render_template('create_assignment.html')
+
+# ---------------------------- Assignment Template Creation ----------------------------
+@app.route('/create_assignment_template', methods=['GET', 'POST'])
+@login_required
+def create_assignment_template():
+    # Authorization check: Only teachers can create templates.
+    if current_user.role != 'teacher':
+        abort(403)
+
+    if request.method == 'POST':
+        title = request.form.get('title')
+        question_texts = request.form.getlist('question_text')
+        question_types = request.form.getlist('question_type')
+
+        if not title or not question_texts:
+            flash('A template must have a title and at least one question.', 'error')
+            return redirect(url_for('create_assignment_template'))
+
+        questions = []
+        for i, text in enumerate(question_texts):
+            q_type = question_types[i]
+            question_data = {"text": text, "type": q_type}
+
+            if q_type == 'single_response':
+                question_data['answer'] = request.form.get(f'answer_{i}')
+            elif q_type == 'multiple_choice':
+                options = request.form.getlist(f'option_{i}')
+                correct_option_index = request.form.get(f'correct_option_{i}')
+                
+                if not options or correct_option_index is None:
+                    flash(f'Error in Question {i+1}: A multiple-choice question must have options and a selected correct answer.', 'error')
+                    return redirect(url_for('create_assignment_template'))
+
+                question_data['options'] = options
+                question_data['answer'] = int(correct_option_index)
+            
+            questions.append(question_data)
+
+        mongo.db.assignment_templates.insert_one({
+            'title': title,
+            'questions': questions,
+            'created_by': ObjectId(current_user.id),
+            'created_at': datetime.utcnow()
+        })
+        flash('Assignment template created successfully!', 'success')
+        return redirect(url_for('dashboard'))
+        
+    return render_template('create_assignment_template.html')
 
 # ---------------------------- Assignment Edit (Teacher) ----------------------------
 @app.route('/edit_assignment/<assignment_id>', methods=['GET', 'POST'])
@@ -554,35 +515,6 @@ def register_class():
     return render_template('register_class.html', active_classes=active_classes)
 
 # ---------------------------- Take Assignment (Student) ----------------------------
-def _process_random_vars(text, context):
-    """Finds `{{range(min,max)}}` and replaces them with a random number."""
-    # This regex finds all instances of {{...}}
-    pattern = re.compile(r'\{\{([^}]+)\}\}')
-    
-    def replacer(match):
-        expression = match.group(1).strip()
-        if expression.startswith('range(') and expression.endswith(')'):
-            try:
-                # Safely parse 'range(min, max)' without using eval
-                args_str = expression[6:-1] # Get content inside range(...)
-                parts = args_str.split(',')
-                if len(parts) != 2:
-                    return match.group(0) # Return original if not 2 args
-                
-                min_val = int(parts[0].strip())
-                max_val = int(parts[1].strip())
-
-                var_name = f"var_{len(context)}"
-                rand_val = random.randint(min_val, max_val)
-                context[var_name] = rand_val
-                return str(rand_val)
-            except (ValueError, IndexError):
-                return match.group(0) # Return original on parsing error
-        return match.group(0)
-
-    processed_text = re.sub(pattern, replacer, text)
-    return processed_text, context
-
 @app.route('/take_assignment/<assignment_id>', methods=['GET', 'POST'])
 @login_required
 def take_assignment(assignment_id):
@@ -591,71 +523,50 @@ def take_assignment(assignment_id):
 
     assignment = mongo.db.assignments.find_one_or_404({'_id': ObjectId(assignment_id)})
 
-    # More efficient authorization: Does a registration exist for this student in any of the assigned classes?
-    is_authorized = mongo.db.class_registrations.find_one({
-        'student_id': ObjectId(current_user.id),
-        'class_id': {'$in': assignment.get('assigned_to_classes', [])}
-    })
+    # Authorization: Check if student is in a class this is assigned to
+    registrations = list(mongo.db.class_registrations.find({'student_id': ObjectId(current_user.id)}))
+    # Safely get class_id, only for documents that have it.
+    registered_class_ids = {reg['class_id'] for reg in registrations if 'class_id' in reg}
+    assigned_class_ids = set(assignment.get('assigned_to_classes', []))
 
-    if not is_authorized:
-        flash('You are not authorized to take this assignment. You must be registered for the class it is assigned to.', 'error')
+    if not registered_class_ids.intersection(assigned_class_ids):
+        flash('You are not authorized to take this assignment.', 'error')
         return redirect(url_for('dashboard'))
 
     # Prevent re-submission
     existing_submission = mongo.db.submissions.find_one({'student_id': ObjectId(current_user.id), 'assignment_id': ObjectId(assignment_id)})
     if existing_submission:
         flash('You have already completed this assignment.', 'warning')
-        # Better UX: Redirect to their existing results
-        return redirect(url_for('submission_summary', submission_id=existing_submission['_id']))
-
-    # Process questions for random variables
-    # We create a copy to modify for rendering, keeping the original intact for answer checking.
-    assignment_for_render = {k: v for k, v in assignment.items()}
-    processed_questions = []
-    variables_context = {}
-    for q in assignment['questions']:
-        processed_q = q.copy()
-        processed_q['text'], variables_context = _process_random_vars(q['text'], variables_context)
-        processed_questions.append(processed_q)
-    assignment_for_render['questions'] = processed_questions
+        return redirect(url_for('dashboard'))
 
     if request.method == 'POST':
         answers = []
         score = 0
         total_questions = len(assignment['questions'])
-        aeval = Interpreter()  # Create a safe interpreter
-        aeval.symtable.update(variables_context)  # Load generated random numbers
 
-        # Use the original assignment data for checking answers, preventing N+1 queries
-        for i, original_question in enumerate(assignment['questions']):
+        for i, question in enumerate(assignment['questions']):
             student_answer_raw = request.form.get(f'answer_{i}')
             is_correct = False
+            correct_answer = question.get('answer')
 
-            correct_answer_template = original_question.get('answer')
-
-            # Process the correct answer template with the generated variables
-            if isinstance(correct_answer_template, str):
-                try:
-                    # Safely evaluate the formula using asteval
-                    correct_answer = aeval.eval(correct_answer_template)
-                except:
-                    correct_answer = correct_answer_template # Fallback if not a formula
-            else:
-                 correct_answer = correct_answer_template
+            if question['type'] == 'single_response':
+                # Simple case-insensitive, whitespace-trimmed comparison
+                if student_answer_raw and isinstance(correct_answer, str):
+                    is_correct = student_answer_raw.strip().lower() == correct_answer.strip().lower()
             
-            if original_question['type'] == 'single_response':
-                if student_answer_raw and str(student_answer_raw).strip().lower() == str(correct_answer).strip().lower():
-                    is_correct = True
-            
-            elif original_question['type'] == 'multiple_choice':
-                if student_answer_raw is not None and int(student_answer_raw) == correct_answer:
-                    is_correct = True
+            elif question['type'] == 'multiple_choice':
+                # Compare the submitted index with the correct index
+                if student_answer_raw is not None:
+                    try:
+                        is_correct = int(student_answer_raw) == correct_answer
+                    except (ValueError, TypeError):
+                        is_correct = False # Handle cases where conversion fails
             
             if is_correct:
                 score += 1
 
             answers.append({
-                'question_text': assignment_for_render['questions'][i]['text'], # Store the processed question text
+                'question_text': question['text'], 
                 'student_answer': student_answer_raw,
                 'is_correct': is_correct
             })
@@ -673,8 +584,7 @@ def take_assignment(assignment_id):
         flash('Your assignment has been submitted successfully!', 'success')
         return redirect(url_for('submission_summary', submission_id=result.inserted_id))
 
-    return render_template('take_assignment.html', assignment=assignment_for_render)
-
+    return render_template('take_assignment.html', assignment=assignment)
 
 @app.route('/submission_summary/<submission_id>')
 @login_required

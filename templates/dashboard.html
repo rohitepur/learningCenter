@@ -9,77 +9,58 @@
 
     {% if current_user.role == 'teacher' %}
         <hr style="margin: 20px 0;">
-        <h3>Your Assignment Templates</h3>
-        {% if assignment_templates %}
-            <ul class="list-unstyled">
-                {% for template in assignment_templates %}
-                    <li class="list-item">
-                        <div class="list-item-container">
-                            <span>{{ template.title }}</span>
-                            <div class="list-item-actions">
-                                <a href="{{ url_for('generate_assignment_from_template', template_id=template._id) }}" class="btn-link btn-assign">
-                                    Generate Assignment
-                                </a>
-                            </div>
-                        </div>
-                    </li>
-                {% endfor %}
-            </ul>
-        {% else %}
-            <p>You haven't created any assignment templates yet.</p>
-        {% endif %}
-        <a href="{{ url_for('create_assignment_template') }}" style="text-decoration: none;"><button type="button">Create a New Template</button></a>
+        <h3>Your Assignments by Class</h3>
 
-
-        <hr style="margin: 20px 0;">
-        <h3>Your Generated Assignments</h3>
-        {% if assignments %}
-            <ul class="list-unstyled">
-                {% for assignment in assignments %}
-                    <li class="list-item">
-                        <div class="list-item-container">
-                            <span>{{ assignment.title }}</span>
-                            <div class="list-item-actions">
-                                <a href="{{ url_for('edit_assignment', assignment_id=assignment._id) }}" class="btn-link btn-secondary">Edit</a>
-                                <a href="{{ url_for('assign_assignment', assignment_id=assignment._id) }}" class="btn-link btn-assign">
-                                    Assign
-                                </a>
-                            </div>
-                        </div>
-                    </li>
-                {% endfor %}
-            </ul>
-            
-            {% if total_pages > 1 %}
-            <div class="pagination" style="text-align: center; margin-top: 20px;">
-                {% if page > 1 %}
-                    <a href="{{ url_for('dashboard', page=page-1) }}">&laquo; Previous</a>
-                {% endif %}
-            
-                {% for p in range(1, total_pages + 1) %}
-                    {% if p == page %}
-                        <a href="#" style="font-weight: bold; padding: 5px;">{{ p }}</a>
-                    {% else %}
-                        <a href="{{ url_for('dashboard', page=p) }}" style="padding: 5px;">{{ p }}</a>
-                    {% endif %}
-                {% endfor %}
-            
-                {% if page < total_pages %}
-                    <a href="{{ url_for('dashboard', page=page+1) }}">Next &raquo;</a>
-                {% endif %}
-            </div>
-            {% endif %}
-
-        {% else %}
+        {% if not classes_with_assignments and not unassigned_assignments %}
             <p>You haven't created any assignments yet.</p>
             <a href="{{ url_for('create_assignment') }}" style="text-decoration: none;"><button type="button">Create Your First Assignment</button></a>
         {% endif %}
 
+        {% for class in classes_with_assignments %}
+            {% if class.assignments %}
+                <div class="question-block" style="background-color: #f9f9f9; border: 1px solid #e0e0e0; border-radius: 6px; padding: 20px; margin-bottom: 20px;">
+                    <h4 style="margin-top: 0;">Class: {{ class.name }}</h4>
+                    <ul class="list-unstyled" style="margin-bottom: 0;">
+                        {% for assignment in class.assignments %}
+                            <li class="list-item" style="background: #fff;">
+                                <div class="list-item-container">
+                                    <span>{{ assignment.title }}</span>
+                                    <div class="list-item-actions">
+                                        <a href="{{ url_for('edit_assignment', assignment_id=assignment._id) }}" class="btn-link btn-secondary">Edit</a>
+                                        <a href="{{ url_for('assign_assignment', assignment_id=assignment._id) }}" class="btn-link btn-assign">Assign/Re-assign</a>
+                                    </div>
+                                </div>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            {% endif %}
+        {% endfor %}
+
+        {% if unassigned_assignments %}
+            <div class="question-block" style="background-color: #f9f9f9; border: 1px solid #e0e0e0; border-radius: 6px; padding: 20px; margin-bottom: 20px;">
+                <h4 style="margin-top: 0;">Unassigned Assignments</h4>
+                <ul class="list-unstyled" style="margin-bottom: 0;">
+                    {% for assignment in unassigned_assignments %}
+                        <li class="list-item" style="background: #fff;">
+                            <div class="list-item-container">
+                                <span>{{ assignment.title }}</span>
+                                <div class="list-item-actions">
+                                    <a href="{{ url_for('edit_assignment', assignment_id=assignment._id) }}" class="btn-link btn-secondary">Edit</a>
+                                    <a href="{{ url_for('assign_assignment', assignment_id=assignment._id) }}" class="btn-link btn-assign">Assign</a>
+                                </div>
+                            </div>
+                        </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        {% endif %}
+
         <hr style="margin: 20px 0;">
         <h3>Your Created Classes</h3>
-        {% if classes %}
+        {% if classes_with_assignments %}
             <ul class="list-unstyled">
-                {% for class in classes %}
+                {% for class in classes_with_assignments %}
                     <li class="list-item">
                         <div class="list-item-container">
                             <span>{{ class.name }} ({{ class.start_date }} to {{ class.end_date }})</span>
