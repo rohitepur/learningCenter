@@ -144,7 +144,10 @@ def dashboard():
         # Find all assignments that are not assigned to any class
         unassigned_assignments = list(mongo.db.assignments.find({
             'created_by': ObjectId(current_user.id),
-            'assigned_to_classes': {'$exists': False, '$eq': []}
+            '$or': [
+                {'assigned_to_classes': {'$exists': False}},
+                {'assigned_to_classes': []}
+            ]
         }).sort('created_at', -1))
 
     elif current_user.role == 'student':
@@ -358,7 +361,27 @@ def assign_assignment(assignment_id):
     }))
     return render_template('assign_assignment.html', assignment=assignment, classes=teacher_classes)
 
+# ---------------------------- Assignment Deletion (Teacher) ----------------------------
+@app.route('/delete_assignment/<assignment_id>', methods=['POST'])
+@login_required
+def delete_assignment(assignment_id):
+    if current_user.role != 'teacher':
+        abort(403)
 
+    assignment = mongo.db.assignments.find_one_or_404({'_id': ObjectId(assignment_id)})
+    
+    # Security check: ensure the teacher owns this assignment
+    if assignment['created_by'] != ObjectId(current_user.id):
+        abort(403)
+
+    # Delete the assignment
+    mongo.db.assignments.delete_one({'_id': ObjectId(assignment_id)})
+    
+    # Also delete all submissions associated with this assignment
+    mongo.db.submissions.delete_many({'assignment_id': ObjectId(assignment_id)})
+    
+    flash('Assignment and all its submissions have been deleted successfully!', 'success')
+    return redirect(url_for('dashboard'))
 # ---------------------------- Class Creation (Teacher) ----------------------------
 @app.route('/create_class', methods=['GET', 'POST'])
 @login_required

@@ -18,16 +18,22 @@
 
         {% for class in classes_with_assignments %}
             {% if class.assignments %}
-                <div class="question-block" style="background-color: #f9f9f9; border: 1px solid #e0e0e0; border-radius: 6px; padding: 20px; margin-bottom: 20px;">
+                <div class="question-block">
                     <h4 style="margin-top: 0;">Class: {{ class.name }}</h4>
                     <ul class="list-unstyled" style="margin-bottom: 0;">
                         {% for assignment in class.assignments %}
                             <li class="list-item" style="background: #fff;">
+                                
                                 <div class="list-item-container">
                                     <span>{{ assignment.title }}</span>
                                     <div class="list-item-actions">
                                         <a href="{{ url_for('edit_assignment', assignment_id=assignment._id) }}" class="btn-link btn-secondary">Edit</a>
-                                        <a href="{{ url_for('assign_assignment', assignment_id=assignment._id) }}" class="btn-link btn-assign">Assign/Re-assign</a>
+                                        <a href="{{ url_for('assign_assignment', assignment_id=assignment._id) }}" class="btn-link btn-assign">
+                                            Assign
+                                        </a>
+                                        <form method="POST" action="{{ url_for('delete_assignment', assignment_id=assignment._id) }}" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete this assignment? This action cannot be undone.');">
+                                            <button type="submit" class="btn-link btn-danger">Delete</button>
+                                        </form>
                                     </div>
                                 </div>
                             </li>
@@ -38,7 +44,7 @@
         {% endfor %}
 
         {% if unassigned_assignments %}
-            <div class="question-block" style="background-color: #f9f9f9; border: 1px solid #e0e0e0; border-radius: 6px; padding: 20px; margin-bottom: 20px;">
+            <div class="question-block">
                 <h4 style="margin-top: 0;">Unassigned Assignments</h4>
                 <ul class="list-unstyled" style="margin-bottom: 0;">
                     {% for assignment in unassigned_assignments %}
@@ -48,6 +54,9 @@
                                 <div class="list-item-actions">
                                     <a href="{{ url_for('edit_assignment', assignment_id=assignment._id) }}" class="btn-link btn-secondary">Edit</a>
                                     <a href="{{ url_for('assign_assignment', assignment_id=assignment._id) }}" class="btn-link btn-assign">Assign</a>
+                                    <form method="POST" action="{{ url_for('delete_assignment', assignment_id=assignment._id) }}" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete this assignment? This action cannot be undone.');">
+                                        <button type="submit" class="btn-link btn-danger">Delete</button>
+                                    </form>
                                 </div>
                             </div>
                         </li>
