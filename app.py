@@ -4,6 +4,7 @@ from flask_bcrypt import Bcrypt
 from flask_login import LoginManager, login_user, logout_user, login_required, UserMixin, current_user
 from bson.objectid import ObjectId
 from dotenv import load_dotenv
+from functools import wraps
 from werkzeug.utils import secure_filename
 import math
 from datetime import datetime
@@ -57,6 +58,50 @@ def load_user(user_id):
     user = mongo.db.users.find_one({'_id': ObjectId(user_id)})
     return User(user) if user else None
 
+# ---------------------------- Decorators ----------------------------
+def teacher_required(f):
+    """Decorator to ensure a user is logged in and has the 'teacher' role."""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not current_user.is_authenticated or current_user.role != 'teacher':
+            abort(403)
+        return f(*args, **kwargs)
+    return decorated_function
+
+# ---------------------------- Helper Functions ----------------------------
+def _parse_assignment_questions_from_form(form):
+    """Parses question data from a request form, returning questions and an error."""
+    question_texts = form.getlist('question_text')
+    question_types = form.getlist('question_type')
+    
+    questions = []
+    for i, text in enumerate(question_texts):
+        q_type = question_types[i]
+        question_data = {"text": text, "type": q_type}
+
+        if q_type == 'single_response':
+            question_data['answer'] = form.get(f'answer_{i}')
+        elif q_type == 'multiple_choice':
+            options = form.getlist(f'option_{i}')
+            correct_option_index = form.get(f'correct_option_{i}')
+            
+            if not options or correct_option_index is None:
+                return None, f'Error in Question {i+1}: A multiple-choice question must have options and a selected correct answer.'
+
+            question_data['options'] = options
+            question_data['answer'] = int(correct_option_index)
+        
+        questions.append(question_data)
+    return questions, None
+
+def _check_answer(question, student_answer_raw):
+    """Checks if a student's answer is correct for a given question."""
+    correct_answer = question.get('answer')
+    if question['type'] == 'single_response' and student_answer_raw and isinstance(correct_answer, str):
+        return student_answer_raw.strip().lower() == correct_answer.strip().lower()
+    elif question['type'] == 'multiple_choice' and student_answer_raw is not None:
+        return student_answer_raw.isdigit() and int(student_answer_raw) == correct_answer
+    return False
 # ---------------------------- Routes ----------------------------
 
 @app.route('/')
@@ -129,27 +174,38 @@ def dashboard():
     unassigned_assignments = []
 
     if current_user.role == 'teacher':
-        # Fetch all classes created by the teacher, sorted by name
-        classes = list(mongo.db.classes.find({'created_by': ObjectId(current_user.id)}).sort('name', 1))
-
-        # For each class, find its assigned assignments
-        for a_class in classes:
-            a_class['assignments'] = list(mongo.db.assignments.find({
-                'created_by': ObjectId(current_user.id),
-                'assigned_to_classes': a_class['_id']
-            }).sort('created_at', -1))
+        teacher_id = ObjectId(current_user.id)
         
-        classes_with_assignments = classes
-
-        # Find all assignments that are not assigned to any class
-        unassigned_assignments = list(mongo.db.assignments.find({
-            'created_by': ObjectId(current_user.id),
-            '$or': [
-                {'assigned_to_classes': {'$exists': False}},
-                {'assigned_to_classes': []}
-            ]
+        # Fetch all classes and assignments for the teacher in fewer queries
+        classes = list(mongo.db.classes.find({'created_by': teacher_id}).sort('name', 1))
+        all_assignments = list(mongo.db.assignments.find({
+            'created_by': teacher_id
         }).sort('created_at', -1))
 
+        # Group assignments by class_id for efficient lookup
+        class_ids = [c['_id'] for c in classes]
+        assignments_by_class = {str(cid): [] for cid in class_ids}
+
+        for assignment in all_assignments:
+            assigned_classes = assignment.get('assigned_to_classes', [])
+            if not assigned_classes:
+                unassigned_assignments.append(assignment)
+            else:
+                is_assigned = False
+                for class_id in assigned_classes:
+                    if str(class_id) in assignments_by_class:
+                        assignments_by_class[str(class_id)].append(assignment)
+                        is_assigned = True
+                # If an assignment is assigned to a class the teacher doesn't own,
+                # it might still appear as unassigned from this teacher's perspective.
+                # This logic correctly handles it.
+                if not is_assigned:
+                    unassigned_assignments.append(assignment)
+
+        # Attach the grouped assignments to each class object
+        for a_class in classes:
+            a_class['assignments'] = assignments_by_class.get(str(a_class['_id']), [])
+        classes_with_assignments = classes
     elif current_user.role == 'student':
         # Fetch student's registered class IDs
         registrations = list(mongo.db.class_registrations.find({'student_id': ObjectId(current_user.id)}))
@@ -182,99 +238,32 @@ def logout():
 # ---------------------------- Assignment Creation ----------------------------
 @app.route('/create_assignment', methods=['GET', 'POST'])
 @login_required
+@teacher_required
 def create_assignment():
-    # Authorization check: Only teachers can create assignments.
-    if current_user.role != 'teacher':
-        abort(403)
-
     if request.method == 'POST':
         title = request.form.get('title')
-        question_texts = request.form.getlist('question_text')
-        question_types = request.form.getlist('question_type')
-
-        if not title or not question_texts:
-            flash('An assignment must have a title and at least one question.', 'error')
+        if not title:
+            flash('An assignment must have a title.', 'error')
             return redirect(url_for('create_assignment'))
 
-        questions = []
-        for i, text in enumerate(question_texts):
-            q_type = question_types[i]
-            question_data = {"text": text, "type": q_type}
-
-            if q_type == 'single_response':
-                question_data['answer'] = request.form.get(f'answer_{i}')
-            elif q_type == 'multiple_choice':
-                # Get all options for the current question
-                options = request.form.getlist(f'option_{i}')
-                correct_option_index = request.form.get(f'correct_option_{i}')
-                
-                if not options or correct_option_index is None:
-                    flash(f'Error in Question {i+1}: A multiple-choice question must have options and a selected correct answer.', 'error')
-                    return redirect(url_for('create_assignment'))
-
-                question_data['options'] = options
-                # Store the index of the correct answer
-                question_data['answer'] = int(correct_option_index)
-            
-            questions.append(question_data)
+        questions, error = _parse_assignment_questions_from_form(request.form)
+        if error:
+            flash(error, 'error')
+            return redirect(url_for('create_assignment'))
+        
+        if not questions:
+            flash('An assignment must have at least one question.', 'error')
+            return redirect(url_for('create_assignment'))
 
         mongo.db.assignments.insert_one({
-            'title': title,
-            'questions': questions,
-            'created_by': ObjectId(current_user.id), # Track who created the test
-            'created_at': datetime.utcnow()
-        })
-        flash('Assignment created successfully!', 'success')
-        return redirect(url_for('dashboard'))
-    return render_template('create_assignment.html')
-
-# ---------------------------- Assignment Template Creation ----------------------------
-@app.route('/create_assignment_template', methods=['GET', 'POST'])
-@login_required
-def create_assignment_template():
-    # Authorization check: Only teachers can create templates.
-    if current_user.role != 'teacher':
-        abort(403)
-
-    if request.method == 'POST':
-        title = request.form.get('title')
-        question_texts = request.form.getlist('question_text')
-        question_types = request.form.getlist('question_type')
-
-        if not title or not question_texts:
-            flash('A template must have a title and at least one question.', 'error')
-            return redirect(url_for('create_assignment_template'))
-
-        questions = []
-        for i, text in enumerate(question_texts):
-            q_type = question_types[i]
-            question_data = {"text": text, "type": q_type}
-
-            if q_type == 'single_response':
-                question_data['answer'] = request.form.get(f'answer_{i}')
-            elif q_type == 'multiple_choice':
-                options = request.form.getlist(f'option_{i}')
-                correct_option_index = request.form.get(f'correct_option_{i}')
-                
-                if not options or correct_option_index is None:
-                    flash(f'Error in Question {i+1}: A multiple-choice question must have options and a selected correct answer.', 'error')
-                    return redirect(url_for('create_assignment_template'))
-
-                question_data['options'] = options
-                question_data['answer'] = int(correct_option_index)
-            
-            questions.append(question_data)
-
-        mongo.db.assignment_templates.insert_one({
             'title': title,
             'questions': questions,
             'created_by': ObjectId(current_user.id),
             'created_at': datetime.utcnow()
         })
-        flash('Assignment template created successfully!', 'success')
+        flash('Assignment created successfully!', 'success')
         return redirect(url_for('dashboard'))
-        
-    return render_template('create_assignment_template.html')
+    return render_template('create_assignment.html')
 
 # ---------------------------- Assignment Edit (Teacher) ----------------------------
 @app.route('/edit_assignment/<assignment_id>', methods=['GET', 'POST'])

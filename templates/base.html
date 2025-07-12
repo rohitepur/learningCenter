@@ -353,7 +353,6 @@
                 {% if current_user.role == 'teacher' %}
                     <a href="{{ url_for('create_class') }}">Create Class</a>
                     <a href="{{ url_for('create_assignment') }}">Create Assignment</a>
-                    <a href="{{ url_for('create_assignment_template') }}">Create Template</a>
                     <a href="{{ url_for('assignment_tracking') }}">Track Assignments</a>
                 {% endif %}
             {% endif %}
