@@ -319,6 +319,36 @@ def edit_assignment(assignment_id):
     # For GET request, pass the assignment data to the template
     return render_template('edit_assignment.html', assignment=assignment)
 
+# ---------------------------- Assignment Template Creation ----------------------------
+@app.route('/create_assignment_template', methods=['GET', 'POST'])
+@login_required
+@teacher_required
+def create_assignment_template():
+    if request.method == 'POST':
+        title = request.form.get('title')
+        if not title:
+            flash('A template must have a title.', 'error')
+            return redirect(url_for('create_assignment_template'))
+
+        questions, error = _parse_assignment_questions_from_form(request.form)
+        if error:
+            flash(error, 'error')
+            return redirect(url_for('create_assignment_template'))
+        
+        if not questions:
+            flash('A template must have at least one question.', 'error')
+            return redirect(url_for('create_assignment_template'))
+
+        mongo.db.assignment_templates.insert_one({
+            'title': title,
+            'questions': questions,
+            'created_by': ObjectId(current_user.id),
+            'created_at': datetime.utcnow()
+        })
+        flash('Assignment template created successfully!', 'success')
+        return redirect(url_for('dashboard'))
+    return render_template('create_assignment_template.html')
+
 # ---------------------------- Assign Assignment (Teacher) ----------------------------
 @app.route('/assign_assignment/<assignment_id>', methods=['GET', 'POST'])
 @login_required

@@ -50,6 +50,13 @@
             color: #ecf0f1; /* Match the link color */
             font-size: 17px;
         }
+        .user-greeting {
+            color: #f1c40f; /* A warm yellow for emphasis */
+            font-weight: 500;
+        }
+        .logout-link {
+            font-size: 22px; /* Make the symbol a bit larger */
+        }
         .content { padding: 20px; }
         .alert {
             padding: 15px;
@@ -359,8 +366,8 @@
         </div>
         <div class="nav-right">
             {% if current_user.is_authenticated %}
-                <span>Hello, {{ current_user.name }}</span>
-                <a href="{{ url_for('logout') }}">Logout</a>
+                <span class="user-greeting">Hello, {{ current_user.name }}</span>
+                <a href="{{ url_for('logout') }}" class="logout-link" title="Logout">&#x23FB;</a>
             {% else %}
                 <a href="{{ url_for('login') }}">Login</a>
                 <a href="{{ url_for('register') }}">Register</a>
