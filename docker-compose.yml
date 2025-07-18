@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  web:
+    build:
+      context: .
+    container_name: learningcenter_web
+    ports:
+      # Maps port 8000 on your machine to port 8000 in the container,
+      # matching the port Gunicorn is running on in your Dockerfile.
+      - "8000:8000"
+    volumes:
+      # Mounts your local code into the container for live updates during development.
+      - .:/home/appuser/app
+      # Creates a named volume to persist any files uploaded by users.
+      - uploads-data:/home/appuser/app/uploads
+    env_file:
+      - .env # Loads environment variables from the .env file.
+    depends_on:
+      - mongo # Ensures the mongo container starts before the web container.
+
+  mongo:
+    image: mongo:latest
+    container_name: learningcenter_mongo
+    volumes:
+      # Creates a named volume to persist your database data.
+      - mongo-data:/data/db
+
+# Defines the named volumes used by the services.
+volumes:
+  mongo-data:
+  uploads-data:

@@ -31,6 +31,10 @@ USER appuser
 # Set working directory for the new user
 WORKDIR /home/appuser/app
 
+# Create the upload directory before copying files
+# This ensures the directory exists for the volume mount at runtime.
+RUN mkdir uploads
+
 # Copy the virtual environment with installed packages from the builder stage
 COPY --chown=appuser:appuser --from=builder /opt/venv /opt/venv
 
