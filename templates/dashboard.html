@@ -31,9 +31,6 @@
                                         <a href="{{ url_for('assign_assignment', assignment_id=assignment._id) }}" class="btn-link btn-assign">
                                             Assign
                                         </a>
-                                        <form method="POST" action="{{ url_for('delete_assignment', assignment_id=assignment._id) }}" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete this assignment? This action cannot be undone.');">
-                                            <button type="submit" class="btn-link btn-danger">Delete</button>
-                                        </form>
                                     </div>
                                 </div>
                             </li>

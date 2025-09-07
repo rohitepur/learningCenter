@@ -5,6 +5,9 @@ from flask_login import LoginManager, login_user, logout_user, login_required, U
 from bson.objectid import ObjectId
 from dotenv import load_dotenv
 from werkzeug.utils import secure_filename
+from teacher import teacher_bp
+from database import init_app, mongo
+from pymongo import MongoClient, ASCENDING
 import math
 from datetime import datetime
 import calendar
@@ -16,30 +19,19 @@ app = Flask(__name__)
 # It's best practice to load sensitive data from environment variables.
 # The second argument to .get() is a default value, useful for local development.
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY')
-app.config['MONGO_URI'] = os.environ.get('MONGO_URI')
 app.config['UPLOAD_FOLDER'] = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
+
+# Initialize the database
+init_app(app)
+
+ # Register blueprints
+app.register_blueprint(teacher_bp)
 
 # --- Configuration Validation ---
 # Ensure essential variables are set, otherwise raise a clear error.
-if not app.config['MONGO_URI']:
-    raise RuntimeError("MONGO_URI not set. Please check your .env file.")
 if not app.config['SECRET_KEY']:
     raise RuntimeError("SECRET_KEY not set. Please check your .env file.")
 
-# For debugging purposes, print the URI to the console on startup.
-# This helps confirm that the .env file is being loaded correctly.
-# Remember to remove this in a production environment.
-print(f"INFO: Connecting to MongoDB with URI: {app.config.get('MONGO_URI')}")
-
-mongo = PyMongo(app)
-
-# --- Database Connection Validation ---
-# Add a check to ensure a database connection was actually established.
-# mongo.db will be None if the MONGO_URI is missing a database name.
-if mongo.db is None:
-    raise RuntimeError("Failed to connect to the database. "
-                       "Please check that your MONGO_URI in the .env file "
-                       "includes a database name, e.g., 'mongodb://localhost:27017/mydatabase'.")
 bcrypt = Bcrypt(app)
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
@@ -127,6 +119,7 @@ def dashboard():
     submissions_map = {}
     classes_with_assignments = []
     unassigned_assignments = []
+    teacher_templates = []
 
     if current_user.role == 'teacher':
         # Fetch all classes created by the teacher, sorted by name
@@ -144,11 +137,14 @@ def dashboard():
         # Find all assignments that are not assigned to any class
         unassigned_assignments = list(mongo.db.assignments.find({
             'created_by': ObjectId(current_user.id),
-            '$or': [
-                {'assigned_to_classes': {'$exists': False}},
-                {'assigned_to_classes': []}
-            ]
+            'assigned_to_classes': {'$exists': False, '$eq': []}
         }).sort('created_at', -1))
+        
+        # New: Fetch assignment templates created by the teacher
+        teacher_templates = list(mongo.db.assignment_templates.find({
+            'created_by': ObjectId(current_user.id)
+        }).sort('created_at', -1))
+
 
     elif current_user.role == 'student':
         # Fetch student's registered class IDs
@@ -171,7 +167,8 @@ def dashboard():
                            unassigned_assignments=unassigned_assignments,
                            student_classes=student_classes,
                            student_assignments=student_assignments,
-                           submissions_map=submissions_map)
+                           submissions_map=submissions_map,
+                           teacher_templates=teacher_templates)
 
 @app.route('/logout')
 @login_required
@@ -276,6 +273,60 @@ def create_assignment_template():
         
     return render_template('create_assignment_template.html')
 
+# ---------------------------- Create Assignment From Template ----------------------------
+@app.route('/create_assignment_from_template/<template_id>', methods=['GET', 'POST'])
+@login_required
+def create_assignment_from_template(template_id):
+    if current_user.role != 'teacher':
+        abort(403)
+
+    template = mongo.db.assignment_templates.find_one_or_404({'_id': ObjectId(template_id)})
+    # Security check: ensure the teacher owns this template
+    if template['created_by'] != ObjectId(current_user.id):
+        abort(403)
+
+    if request.method == 'POST':
+        # This logic is identical to create_assignment, but it creates a new assignment
+        title = request.form.get('title')
+        question_texts = request.form.getlist('question_text')
+        question_types = request.form.getlist('question_type')
+
+        if not title or not question_texts:
+            flash('An assignment must have a title and at least one question.', 'error')
+            return redirect(url_for('create_assignment_from_template', template_id=template_id))
+
+        questions = []
+        for i, text in enumerate(question_texts):
+            q_type = question_types[i]
+            question_data = {"text": text, "type": q_type}
+
+            if q_type == 'single_response':
+                question_data['answer'] = request.form.get(f'answer_{i}')
+            elif q_type == 'multiple_choice':
+                options = request.form.getlist(f'option_{i}')
+                correct_option_index = request.form.get(f'correct_option_{i}')
+                
+                if not options or correct_option_index is None:
+                    flash(f'Error in Question {i+1}: A multiple-choice question must have options and a selected correct answer.', 'error')
+                    return redirect(url_for('create_assignment_from_template', template_id=template_id))
+
+                question_data['options'] = options
+                question_data['answer'] = int(correct_option_index)
+            
+            questions.append(question_data)
+
+        mongo.db.assignments.insert_one({
+            'title': title,
+            'questions': questions,
+            'created_by': ObjectId(current_user.id),
+            'created_at': datetime.utcnow(),
+            'assigned_to_classes': []  # Explicitly initialize as unassigned
+        })
+        flash('Assignment created successfully from template!', 'success')
+        return redirect(url_for('dashboard'))
+
+    return render_template('create_assignment_from_template.html', template=template)
+
 # ---------------------------- Assignment Edit (Teacher) ----------------------------
 @app.route('/edit_assignment/<assignment_id>', methods=['GET', 'POST'])
 @login_required
@@ -361,27 +412,7 @@ def assign_assignment(assignment_id):
     }))
     return render_template('assign_assignment.html', assignment=assignment, classes=teacher_classes)
 
-# ---------------------------- Assignment Deletion (Teacher) ----------------------------
-@app.route('/delete_assignment/<assignment_id>', methods=['POST'])
-@login_required
-def delete_assignment(assignment_id):
-    if current_user.role != 'teacher':
-        abort(403)
 
-    assignment = mongo.db.assignments.find_one_or_404({'_id': ObjectId(assignment_id)})
-    
-    # Security check: ensure the teacher owns this assignment
-    if assignment['created_by'] != ObjectId(current_user.id):
-        abort(403)
-
-    # Delete the assignment
-    mongo.db.assignments.delete_one({'_id': ObjectId(assignment_id)})
-    
-    # Also delete all submissions associated with this assignment
-    mongo.db.submissions.delete_many({'assignment_id': ObjectId(assignment_id)})
-    
-    flash('Assignment and all its submissions have been deleted successfully!', 'success')
-    return redirect(url_for('dashboard'))
 # ---------------------------- Class Creation (Teacher) ----------------------------
 @app.route('/create_class', methods=['GET', 'POST'])
 @login_required

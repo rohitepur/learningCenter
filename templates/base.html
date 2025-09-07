@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Math Test App{% endblock %}</title>
+    <link rel="icon" href="{{ url_for('static', filename='images/logo.png') }}">
     <style>
         /* Basic styling for a clean, floating navbar */
         body { 
@@ -144,7 +145,7 @@
             background-color: #6c757d;
             margin-top: 10px;
         }
-        .btn-add-option:hover { background-color: #5a6268; }
+        .btn-admongod-option:hover { background-color: #5a6268; }
         .form-footer-text {
             text-align: center;
             margin-top: 20px;
@@ -213,6 +214,11 @@
             color: #fff;
             background-color: #dc3545;
             border-color: #dc3545;
+        }
+        hr.separator {
+            margin: 20px 0;
+            border: none;
+            border-top: 1px solid #e0e0e0;
         }
         .math-preview {
             padding: 10px;
@@ -353,8 +359,8 @@
                 {% if current_user.role == 'teacher' %}
                     <a href="{{ url_for('create_class') }}">Create Class</a>
                     <a href="{{ url_for('create_assignment') }}">Create Assignment</a>
-                    <a href="{{ url_for('create_assignment_template') }}">Create Template</a>
                     <a href="{{ url_for('assignment_tracking') }}">Track Assignments</a>
+                    <a href="{{ url_for('teacher.students_list') }}">Students List</a>
                 {% endif %}
             {% endif %}
         </div>

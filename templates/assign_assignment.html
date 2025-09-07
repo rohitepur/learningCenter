@@ -6,18 +6,25 @@
 <div class="form-container">
     <h2>Assign "{{ assignment.title }}"</h2>
     <p>Select the classes you want to assign this to. Only active classes are shown.</p>
-    <hr style="margin: 20px 0;">
+    <hr class="separator">
     <form method="POST" novalidate>
         <div class="form-group">
             <label>Available Classes</label>
-            {% for class in classes %}
+            {% if classes %}
+                {% for class in classes %}
                 <div class="checkbox-group">
                     <input type="checkbox" name="class_ids" value="{{ class._id }}" id="class_{{ class._id }}" {% if class._id in assignment.get('assigned_to_classes', []) %}checked{% endif %}>
                     <label for="class_{{ class._id }}">{{ class.name }}</label>
                 </div>
-            {% endfor %}
+                {% endfor %}
+            {% else %}
+                <div class="alert alert-warning">
+                    You have no active classes to assign this to. <a href="{{ url_for('create_class') }}">Create a class</a> first.
+                </div>
+            {% endif %}
         </div>
-        <button type="submit">Update Assignment</button>
+        {% if classes %}<button type="submit">Update Assignment</button>{% endif %}
+        <a href="{{ url_for('dashboard') }}" class="btn-link btn-secondary btn-full-width">Back to Dashboard</a>
     </form>
 </div>
 {% endblock %}

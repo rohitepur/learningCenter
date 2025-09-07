@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Students</h1>
+
+<form method="get" class="mb-3">
+  <input name="q" value="{{q}}" placeholder="Search name, email, id, class, parent" />
+  <button type="submit">Search</button>
+  &nbsp; <a href="{{ url_for('teacher.students_template') }}">Download CSV Template</a>
+  &nbsp; <a href="{{ url_for('teacher.students_export') }}">Export CSV</a>
+</form>
+
+<h3>Upload CSV</h3>
+<form action="{{ url_for('teacher.students_upload') }}" method="post" enctype="multipart/form-data" class="mb-4">
+  <input type="file" name="file" accept=".csv" required>
+  <button type="submit">Upload</button>
+</form>
+
+<h3>Add / Update Single Student</h3>
+<form action="{{ url_for('teacher.students_create_or_update') }}" method="post" class="mb-4">
+  <input name="student_id" placeholder="student_id (unique)" />
+  <input name="first_name" placeholder="first name" required />
+  <input name="last_name" placeholder="last name" required />
+  <input name="email" type="email" placeholder="email" />
+  <input name="grade" type="number" placeholder="grade" />
+  <input name="classes" placeholder="classes (pipe-separated)" />
+  <select name="reg_status">
+    {% for s in ALLOWED_STATUSES %}
+      <option value="{{s}}">{{s}}</option>
+    {% endfor %}
+  </select>
+  <input name="notes" placeholder="notes" />
+  <!-- Parent info -->
+  <input name="dad_name"  placeholder="Dad name" />
+  <input name="dad_phone" placeholder="Dad phone" />
+  <input name="mom_name"  placeholder="Mom name" />
+  <input name="mom_phone" placeholder="Mom phone" />
+  <button type="submit">Save</button>
+</form>
+
+<table border="1" cellspacing="0" cellpadding="6">
+  <thead>
+    <tr>
+      <th>student_id</th>
+      <th>Name</th>
+      <th>Email</th>
+      <th>Grade</th>
+      <th>Classes</th>
+      <th>Status</th>
+      <th>Dad</th>
+      <th>Dad Phone</th>
+      <th>Mom</th>
+      <th>Mom Phone</th>
+      <th>Update Status</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for s in students %}
+    <tr>
+      <td>{{ s.student_id or '' }}</td>
+      <td>{{ s.last_name }}, {{ s.first_name }}</td>
+      <td>{{ s.email or '' }}</td>
+      <td>{{ s.grade or '' }}</td>
+      <td>{{ (s.classes or []) | join(' | ') }}</td>
+      <td>{{ s.reg_status or '' }}</td>
+      <td>{{ s.dad_name or '' }}</td>
+      <td>{{ s.dad_phone or '' }}</td>
+      <td>{{ s.mom_name or '' }}</td>
+      <td>{{ s.mom_phone or '' }}</td>
+      <td>
+        <form action="{{ url_for('teacher.students_update_status', id=s._id) }}" method="post">
+          <select name="reg_status">
+            {% for st in ALLOWED_STATUSES %}
+              <option value="{{st}}" {% if s.reg_status==st %}selected{% endif %}>{{st}}</option>
+            {% endfor %}
+          </select>
+          <button type="submit">Save</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}
